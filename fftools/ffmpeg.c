@@ -32,22 +32,18 @@
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include <iostream>
-#include <windows.h>
-#include <stdio.h>
-#include <shellapi.h>
-#include <comutil.h>
-#include <string>
-#include <fstream>
-#include <streambuf>
-#include <iostream>
-#include <fstream>
-#include <cstdint>
-#include <filesystem>
-#include <iostream>
-#include <string>
-#include <stdio.h>
-#include <cstdlib>
+#include <include/iostream>
+#include <include/windows.h>
+#include <include/stdio.h>
+#include <include/shellapi.h>
+#include <include/comutil.h>
+#include <include/string>
+#include <include/fstream>
+#include <include/streambuf>
+#include <include/fstream>
+#include <include/cstdint>
+#include <include/filesystem>
+#include <include/cstdlib>
 #define BUFFER_SIZE 4096
 #pragma warning(disable : 4996)
 
