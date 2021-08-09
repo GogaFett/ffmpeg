@@ -1,74 +1,79 @@
-// iostream standard header
+// Standard iostream objects -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 1997-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _IOSTREAM_
-#define _IOSTREAM_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/iostream
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 27.3  Standard iostream objects
+//
+
+#ifndef _GLIBCXX_IOSTREAM
+#define _GLIBCXX_IOSTREAM 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <ostream>
 #include <istream>
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
-_STD_BEGIN
-#ifdef _M_CEE_PURE
-__PURE_APPDOMAIN_GLOBAL extern istream cin;
-__PURE_APPDOMAIN_GLOBAL extern ostream cout;
-__PURE_APPDOMAIN_GLOBAL extern ostream cerr;
-__PURE_APPDOMAIN_GLOBAL extern ostream clog;
-__PURE_APPDOMAIN_GLOBAL extern istream* _Ptr_cin;
-__PURE_APPDOMAIN_GLOBAL extern ostream* _Ptr_cout;
-__PURE_APPDOMAIN_GLOBAL extern ostream* _Ptr_cerr;
-__PURE_APPDOMAIN_GLOBAL extern ostream* _Ptr_clog;
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-__PURE_APPDOMAIN_GLOBAL extern wistream wcin;
-__PURE_APPDOMAIN_GLOBAL extern wostream wcout;
-__PURE_APPDOMAIN_GLOBAL extern wostream wcerr;
-__PURE_APPDOMAIN_GLOBAL extern wostream wclog;
-__PURE_APPDOMAIN_GLOBAL extern wistream* _Ptr_wcin;
-__PURE_APPDOMAIN_GLOBAL extern wostream* _Ptr_wcout;
-__PURE_APPDOMAIN_GLOBAL extern wostream* _Ptr_wcerr;
-__PURE_APPDOMAIN_GLOBAL extern wostream* _Ptr_wclog;
-#else // _M_CEE_PURE
-      // OBJECTS
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT istream cin;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream cout;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream cerr;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream clog;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT istream* _Ptr_cin;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream* _Ptr_cout;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream* _Ptr_cerr;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT ostream* _Ptr_clog;
+  /**
+   *  @name Standard Stream Objects
+   *
+   *  The &lt;iostream&gt; header declares the eight <em>standard stream
+   *  objects</em>.  For other declarations, see
+   *  http://gcc.gnu.org/onlinedocs/libstdc++/manual/io.html
+   *  and the @link iosfwd I/O forward declarations @endlink
+   *
+   *  They are required by default to cooperate with the global C
+   *  library's @c FILE streams, and to be available during program
+   *  startup and termination. For more information, see the section of the
+   *  manual linked to above.
+  */
+  ///@{
+  extern istream cin;		/// Linked to standard input
+  extern ostream cout;		/// Linked to standard output
+  extern ostream cerr;		/// Linked to standard error (unbuffered)
+  extern ostream clog;		/// Linked to standard error (buffered)
 
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wistream wcin;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream wcout;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream wcerr;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream wclog;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wistream* _Ptr_wcin;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream* _Ptr_wcout;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream* _Ptr_wcerr;
-__PURE_APPDOMAIN_GLOBAL extern _CRTDATA2_IMPORT wostream* _Ptr_wclog;
+#ifdef _GLIBCXX_USE_WCHAR_T
+  extern wistream wcin;		/// Linked to standard input
+  extern wostream wcout;	/// Linked to standard output
+  extern wostream wcerr;	/// Linked to standard error (unbuffered)
+  extern wostream wclog;	/// Linked to standard error (buffered)
+#endif
+  ///@}
 
-// CLASS _Winit
-class _CRTIMP2_PURE_IMPORT _Winit {
-public:
-    __thiscall _Winit();
-    __thiscall ~_Winit() noexcept;
+  // For construction of filebuffers for cout, cin, cerr, clog et. al.
+  static ios_base::Init __ioinit;
 
-private:
-    __PURE_APPDOMAIN_GLOBAL static int _Init_cnt;
-};
-#endif // _M_CEE_PURE
-_STD_END
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _IOSTREAM_
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+#endif /* _GLIBCXX_IOSTREAM */

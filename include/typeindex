@@ -1,90 +1,129 @@
-// typeindex standard header
+// C++11 <typeindex> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2010-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _TYPEINDEX_
-#define _TYPEINDEX_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/typeindex
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_TYPEINDEX
+#define _GLIBCXX_TYPEINDEX 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
 #include <typeinfo>
+#if __cplusplus > 201703L
+# include <compare>
+#endif
 
-#if _HAS_CXX20
-#include <compare>
-#endif // _HAS_CXX20
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+  /**
+   * @brief Class type_index
+   * @ingroup utilities
+   *
+   *  The class type_index provides a simple wrapper for type_info
+   *  which can be used as an index type in associative containers
+   *  (23.6) and in unordered associative containers (23.7).
+   */
+  struct type_index
+  {
+    type_index(const type_info& __rhs) noexcept
+    : _M_target(&__rhs) { }
 
-_STD_BEGIN
-class type_index { // wraps a typeinfo for indexing
-public:
-    type_index(const type_info& _Tinfo) noexcept : _Tptr(&_Tinfo) {}
+    bool
+    operator==(const type_index& __rhs) const noexcept
+    { return *_M_target == *__rhs._M_target; }
 
-    _NODISCARD size_t hash_code() const noexcept {
-        return _Tptr->hash_code();
+#if ! __cpp_lib_three_way_comparison
+    bool
+    operator!=(const type_index& __rhs) const noexcept
+    { return *_M_target != *__rhs._M_target; }
+#endif
+
+    bool
+    operator<(const type_index& __rhs) const noexcept
+    { return _M_target->before(*__rhs._M_target); }
+
+    bool
+    operator<=(const type_index& __rhs) const noexcept
+    { return !__rhs._M_target->before(*_M_target); }
+
+    bool
+    operator>(const type_index& __rhs) const noexcept
+    { return __rhs._M_target->before(*_M_target); }
+
+    bool
+    operator>=(const type_index& __rhs) const noexcept
+    { return !_M_target->before(*__rhs._M_target); }
+
+#if __cpp_lib_three_way_comparison
+    strong_ordering
+    operator<=>(const type_index& __rhs) const noexcept
+    {
+      if (*_M_target == *__rhs._M_target)
+	return strong_ordering::equal;
+      if (_M_target->before(*__rhs._M_target))
+	return strong_ordering::less;
+      return strong_ordering::greater;
     }
+#endif
 
-    _NODISCARD const char* name() const noexcept {
-        return _Tptr->name();
-    }
+    size_t
+    hash_code() const noexcept
+    { return _M_target->hash_code(); }
 
-    _NODISCARD bool operator==(const type_index& _Right) const noexcept {
-        return *_Tptr == *_Right._Tptr;
-    }
+    const char*
+    name() const noexcept
+    { return _M_target->name(); }
 
-#if _HAS_CXX20
-    _NODISCARD strong_ordering operator<=>(const type_index& _Right) const noexcept {
-        return *_Tptr == *_Right._Tptr      ? strong_ordering::equal
-             : _Tptr->before(*_Right._Tptr) ? strong_ordering::less
-                                            : strong_ordering::greater;
-    }
-#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
-    _NODISCARD bool operator!=(const type_index& _Right) const noexcept {
-        return !(*this == _Right);
-    }
-#endif // ^^^ !_HAS_CXX20 ^^^
+  private:
+    const type_info* _M_target;
+  };
 
-    _NODISCARD bool operator<(const type_index& _Right) const noexcept {
-        return _Tptr->before(*_Right._Tptr);
-    }
+  template<typename _Tp> struct hash;
 
-    _NODISCARD bool operator>=(const type_index& _Right) const noexcept {
-        return !(*this < _Right);
-    }
+  /// std::hash specialization for type_index.
+  template<>
+    struct hash<type_index>
+    {
+      typedef size_t        result_type;
+      typedef type_index  argument_type;
 
-    _NODISCARD bool operator>(const type_index& _Right) const noexcept {
-        return _Right < *this;
-    }
+      size_t
+      operator()(const type_index& __ti) const noexcept
+      { return __ti.hash_code(); }
+    };
 
-    _NODISCARD bool operator<=(const type_index& _Right) const noexcept {
-        return !(_Right < *this);
-    }
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
 
-private:
-    const type_info* _Tptr;
-};
+#endif  // C++11
 
-// STRUCT TEMPLATE SPECIALIZATION hash
-template <>
-struct hash<type_index> {
-    _CXX17_DEPRECATE_ADAPTOR_TYPEDEFS typedef type_index _ARGUMENT_TYPE_NAME;
-    _CXX17_DEPRECATE_ADAPTOR_TYPEDEFS typedef size_t _RESULT_TYPE_NAME;
-
-    _NODISCARD size_t operator()(const type_index& _Keyval) const noexcept {
-        return _Keyval.hash_code();
-    }
-};
-_STD_END
-
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _TYPEINDEX_
+#endif  // _GLIBCXX_TYPEINDEX

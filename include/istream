@@ -1,924 +1,997 @@
-// istream standard header
+// Input streams -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 1997-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _ISTREAM_
-#define _ISTREAM_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+//
+// ISO C++ 14882: 27.6.1  Input streams
+//
+
+/** @file include/istream
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_ISTREAM
+#define _GLIBCXX_ISTREAM 1
+
+#pragma GCC system_header
+
+#include <ios>
 #include <ostream>
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-_STD_BEGIN
-#pragma vtordisp(push, 2) // compiler bug workaround
-
-// CLASS TEMPLATE basic_istream
-template <class _Elem, class _Traits>
-class basic_istream : virtual public basic_ios<_Elem, _Traits> { // control extractions from a stream buffer
-public:
-    using _Myios = basic_ios<_Elem, _Traits>;
-    using _Mysb  = basic_streambuf<_Elem, _Traits>;
-    using _Iter  = istreambuf_iterator<_Elem, _Traits>;
-    using _Ctype = ctype<_Elem>;
-    using _Nget  = num_get<_Elem, _Iter>;
-
-#if defined(__FORCE_INSTANCE)
-    explicit __CLR_OR_THIS_CALL basic_istream(_Mysb* _Strbuf, bool _Isstd, bool _Skip_init) : _Chcount(0) {
-        if (!_Skip_init) {
-            _Myios::init(_Strbuf, _Isstd);
-        }
-    }
-#endif // defined(__FORCE_INSTANCE)
-
-    explicit __CLR_OR_THIS_CALL basic_istream(_Mysb* _Strbuf, bool _Isstd = false)
-
-        : _Chcount(0) {
-        _Myios::init(_Strbuf, _Isstd);
-    }
-
-    __CLR_OR_THIS_CALL basic_istream(_Uninitialized) {
-        this->_Addstd(this);
-    }
-
-protected:
-    __CLR_OR_THIS_CALL basic_istream(basic_istream&& _Right) : _Chcount(_Right._Chcount) {
-        _Myios::init();
-        _Myios::move(_STD move(_Right));
-        _Right._Chcount = 0;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator=(basic_istream&& _Right) {
-        this->swap(_Right);
-        return *this;
-    }
-
-    void __CLR_OR_THIS_CALL swap(basic_istream& _Right) {
-        _Myios::swap(_Right);
-        _STD swap(_Chcount, _Right._Chcount);
-    }
-
-public:
-    __CLR_OR_THIS_CALL basic_istream(const basic_istream&) = delete;
-    basic_istream& __CLR_OR_THIS_CALL operator=(const basic_istream&) = delete;
-
-    virtual __CLR_OR_THIS_CALL ~basic_istream() noexcept {}
-
-    using int_type = typename _Traits::int_type;
-    using pos_type = typename _Traits::pos_type;
-    using off_type = typename _Traits::off_type;
-
-    // CLASS TEMPLATE sentry
-    class _Sentry_base {
+  /**
+   *  @brief  Template class basic_istream.
+   *  @ingroup io
+   *
+   *  @tparam _CharT  Type of character stream.
+   *  @tparam _Traits  Traits for character type, defaults to
+   *                   char_traits<_CharT>.
+   *
+   *  This is the base class for all input streams.  It provides text
+   *  formatting of all builtin types, and communicates with any class
+   *  derived from basic_streambuf to do the actual input.
+  */
+  template<typename _CharT, typename _Traits>
+    class basic_istream : virtual public basic_ios<_CharT, _Traits>
+    {
     public:
-        __CLR_OR_THIS_CALL _Sentry_base(basic_istream& _Istr) : _Myistr(_Istr) {
-            const auto _Rdbuf = _Myistr.rdbuf();
-            if (_Rdbuf) {
-                _Rdbuf->_Lock();
-            }
-        }
+      // Types (inherited from basic_ios (27.4.4)):
+      typedef _CharT			 		char_type;
+      typedef typename _Traits::int_type 		int_type;
+      typedef typename _Traits::pos_type 		pos_type;
+      typedef typename _Traits::off_type 		off_type;
+      typedef _Traits			 		traits_type;
 
-        __CLR_OR_THIS_CALL ~_Sentry_base() noexcept {
-            const auto _Rdbuf = _Myistr.rdbuf();
-            if (_Rdbuf) {
-                _Rdbuf->_Unlock();
-            }
-        }
+      // Non-standard Types:
+      typedef basic_streambuf<_CharT, _Traits> 		__streambuf_type;
+      typedef basic_ios<_CharT, _Traits>		__ios_type;
+      typedef basic_istream<_CharT, _Traits>		__istream_type;
+      typedef num_get<_CharT, istreambuf_iterator<_CharT, _Traits> >
+ 							__num_get_type;
+      typedef ctype<_CharT>	      			__ctype_type;
 
-        basic_istream& _Myistr;
+    protected:
+      // Data Members:
+      /**
+       *  The number of characters extracted in the previous unformatted
+       *  function; see gcount().
+      */
+      streamsize 		_M_gcount;
 
-        _Sentry_base& operator=(const _Sentry_base&) = delete;
+    public:
+      /**
+       *  @brief  Base constructor.
+       *
+       *  This ctor is almost never called by the user directly, rather from
+       *  derived classes' initialization lists, which pass a pointer to
+       *  their own stream buffer.
+      */
+      explicit
+      basic_istream(__streambuf_type* __sb)
+      : _M_gcount(streamsize(0))
+      { this->init(__sb); }
+
+      /**
+       *  @brief  Base destructor.
+       *
+       *  This does very little apart from providing a virtual base dtor.
+      */
+      virtual
+      ~basic_istream()
+      { _M_gcount = streamsize(0); }
+
+      /// Safe prefix/suffix operations.
+      class sentry;
+      friend class sentry;
+
+      ///@{
+      /**
+       *  @brief  Interface for manipulators.
+       *
+       *  Manipulators such as @c std::ws and @c std::dec use these
+       *  functions in constructs like
+       *  <code>std::cin >> std::ws</code>.
+       *  For more information, see the iomanip header.
+      */
+      __istream_type&
+      operator>>(__istream_type& (*__pf)(__istream_type&))
+      { return __pf(*this); }
+
+      __istream_type&
+      operator>>(__ios_type& (*__pf)(__ios_type&))
+      {
+	__pf(*this);
+	return *this;
+      }
+
+      __istream_type&
+      operator>>(ios_base& (*__pf)(ios_base&))
+      {
+	__pf(*this);
+	return *this;
+      }
+      ///@}
+
+      ///@{
+      /**
+       *  @name Extractors
+       *
+       *  All the @c operator>> functions (aka <em>formatted input
+       *  functions</em>) have some common behavior.  Each starts by
+       *  constructing a temporary object of type std::basic_istream::sentry
+       *  with the second argument (noskipws) set to false.  This has several
+       *  effects, concluding with the setting of a status flag; see the
+       *  sentry documentation for more.
+       *
+       *  If the sentry status is good, the function tries to extract
+       *  whatever data is appropriate for the type of the argument.
+       *
+       *  If an exception is thrown during extraction, ios_base::badbit
+       *  will be turned on in the stream's error state (without causing an
+       *  ios_base::failure to be thrown) and the original exception will
+       *  be rethrown if badbit is set in the exceptions mask.
+      */
+
+      ///@{
+      /**
+       *  @brief  Integer arithmetic extractors
+       *  @param  __n A variable of builtin integral type.
+       *  @return  @c *this if successful
+       *
+       *  These functions use the stream's current locale (specifically, the
+       *  @c num_get facet) to parse the input data.
+      */
+      __istream_type&
+      operator>>(bool& __n)
+      { return _M_extract(__n); }
+
+      __istream_type&
+      operator>>(short& __n);
+
+      __istream_type&
+      operator>>(unsigned short& __n)
+      { return _M_extract(__n); }
+
+      __istream_type&
+      operator>>(int& __n);
+
+      __istream_type&
+      operator>>(unsigned int& __n)
+      { return _M_extract(__n); }
+
+      __istream_type&
+      operator>>(long& __n)
+      { return _M_extract(__n); }
+
+      __istream_type&
+      operator>>(unsigned long& __n)
+      { return _M_extract(__n); }
+
+#ifdef _GLIBCXX_USE_LONG_LONG
+      __istream_type&
+      operator>>(long long& __n)
+      { return _M_extract(__n); }
+
+      __istream_type&
+      operator>>(unsigned long long& __n)
+      { return _M_extract(__n); }
+#endif
+      ///@}
+
+      ///@{
+      /**
+       *  @brief  Floating point arithmetic extractors
+       *  @param  __f A variable of builtin floating point type.
+       *  @return  @c *this if successful
+       *
+       *  These functions use the stream's current locale (specifically, the
+       *  @c num_get facet) to parse the input data.
+      */
+      __istream_type&
+      operator>>(float& __f)
+      { return _M_extract(__f); }
+
+      __istream_type&
+      operator>>(double& __f)
+      { return _M_extract(__f); }
+
+      __istream_type&
+      operator>>(long double& __f)
+      { return _M_extract(__f); }
+      ///@}
+
+      /**
+       *  @brief  Basic arithmetic extractors
+       *  @param  __p A variable of pointer type.
+       *  @return  @c *this if successful
+       *
+       *  These functions use the stream's current locale (specifically, the
+       *  @c num_get facet) to parse the input data.
+      */
+      __istream_type&
+      operator>>(void*& __p)
+      { return _M_extract(__p); }
+
+      /**
+       *  @brief  Extracting into another streambuf.
+       *  @param  __sb  A pointer to a streambuf
+       *
+       *  This function behaves like one of the basic arithmetic extractors,
+       *  in that it also constructs a sentry object and has the same error
+       *  handling behavior.
+       *
+       *  If @p __sb is NULL, the stream will set failbit in its error state.
+       *
+       *  Characters are extracted from this stream and inserted into the
+       *  @p __sb streambuf until one of the following occurs:
+       *
+       *  - the input stream reaches end-of-file,
+       *  - insertion into the output buffer fails (in this case, the
+       *    character that would have been inserted is not extracted), or
+       *  - an exception occurs (and in this case is caught)
+       *
+       *  If the function inserts no characters, failbit is set.
+      */
+      __istream_type&
+      operator>>(__streambuf_type* __sb);
+      ///@}
+
+      // [27.6.1.3] unformatted input
+      /**
+       *  @brief  Character counting
+       *  @return  The number of characters extracted by the previous
+       *           unformatted input function dispatched for this stream.
+      */
+      streamsize
+      gcount() const
+      { return _M_gcount; }
+
+      ///@{
+      /**
+       *  @name Unformatted Input Functions
+       *
+       *  All the unformatted input functions have some common behavior.
+       *  Each starts by constructing a temporary object of type
+       *  std::basic_istream::sentry with the second argument (noskipws)
+       *  set to true.  This has several effects, concluding with the
+       *  setting of a status flag; see the sentry documentation for more.
+       *
+       *  If the sentry status is good, the function tries to extract
+       *  whatever data is appropriate for the type of the argument.
+       *
+       *  The number of characters extracted is stored for later retrieval
+       *  by gcount().
+       *
+       *  If an exception is thrown during extraction, ios_base::badbit
+       *  will be turned on in the stream's error state (without causing an
+       *  ios_base::failure to be thrown) and the original exception will
+       *  be rethrown if badbit is set in the exceptions mask.
+      */
+
+      /**
+       *  @brief  Simple extraction.
+       *  @return  A character, or eof().
+       *
+       *  Tries to extract a character.  If none are available, sets failbit
+       *  and returns traits::eof().
+      */
+      int_type
+      get();
+
+      /**
+       *  @brief  Simple extraction.
+       *  @param  __c  The character in which to store data.
+       *  @return  *this
+       *
+       *  Tries to extract a character and store it in @a __c.  If none are
+       *  available, sets failbit and returns traits::eof().
+       *
+       *  @note  This function is not overloaded on signed char and
+       *         unsigned char.
+      */
+      __istream_type&
+      get(char_type& __c);
+
+      /**
+       *  @brief  Simple multiple-character extraction.
+       *  @param  __s  Pointer to an array.
+       *  @param  __n  Maximum number of characters to store in @a __s.
+       *  @param  __delim  A "stop" character.
+       *  @return  *this
+       *
+       *  Characters are extracted and stored into @a __s until one of the
+       *  following happens:
+       *
+       *  - @c __n-1 characters are stored
+       *  - the input sequence reaches EOF
+       *  - the next character equals @a __delim, in which case the character
+       *    is not extracted
+       *
+       * If no characters are stored, failbit is set in the stream's error
+       * state.
+       *
+       * In any case, a null character is stored into the next location in
+       * the array.
+       *
+       *  @note  This function is not overloaded on signed char and
+       *         unsigned char.
+      */
+      __istream_type&
+      get(char_type* __s, streamsize __n, char_type __delim);
+
+      /**
+       *  @brief  Simple multiple-character extraction.
+       *  @param  __s  Pointer to an array.
+       *  @param  __n  Maximum number of characters to store in @a s.
+       *  @return  *this
+       *
+       *  Returns @c get(__s,__n,widen(&apos;\\n&apos;)).
+      */
+      __istream_type&
+      get(char_type* __s, streamsize __n)
+      { return this->get(__s, __n, this->widen('\n')); }
+
+      /**
+       *  @brief  Extraction into another streambuf.
+       *  @param  __sb  A streambuf in which to store data.
+       *  @param  __delim  A "stop" character.
+       *  @return  *this
+       *
+       *  Characters are extracted and inserted into @a __sb until one of the
+       *  following happens:
+       *
+       *  - the input sequence reaches EOF
+       *  - insertion into the output buffer fails (in this case, the
+       *    character that would have been inserted is not extracted)
+       *  - the next character equals @a __delim (in this case, the character
+       *    is not extracted)
+       *  - an exception occurs (and in this case is caught)
+       *
+       * If no characters are stored, failbit is set in the stream's error
+       * state.
+      */
+      __istream_type&
+      get(__streambuf_type& __sb, char_type __delim);
+
+      /**
+       *  @brief  Extraction into another streambuf.
+       *  @param  __sb  A streambuf in which to store data.
+       *  @return  *this
+       *
+       *  Returns @c get(__sb,widen(&apos;\\n&apos;)).
+      */
+      __istream_type&
+      get(__streambuf_type& __sb)
+      { return this->get(__sb, this->widen('\n')); }
+
+      /**
+       *  @brief  String extraction.
+       *  @param  __s  A character array in which to store the data.
+       *  @param  __n  Maximum number of characters to extract.
+       *  @param  __delim  A "stop" character.
+       *  @return  *this
+       *
+       *  Extracts and stores characters into @a __s until one of the
+       *  following happens.  Note that these criteria are required to be
+       *  tested in the order listed here, to allow an input line to exactly
+       *  fill the @a __s array without setting failbit.
+       *
+       *  -# the input sequence reaches end-of-file, in which case eofbit
+       *     is set in the stream error state
+       *  -# the next character equals @c __delim, in which case the character
+       *     is extracted (and therefore counted in @c gcount()) but not stored
+       *  -# @c __n-1 characters are stored, in which case failbit is set
+       *     in the stream error state
+       *
+       *  If no characters are extracted, failbit is set.  (An empty line of
+       *  input should therefore not cause failbit to be set.)
+       *
+       *  In any case, a null character is stored in the next location in
+       *  the array.
+      */
+      __istream_type&
+      getline(char_type* __s, streamsize __n, char_type __delim);
+
+      /**
+       *  @brief  String extraction.
+       *  @param  __s  A character array in which to store the data.
+       *  @param  __n  Maximum number of characters to extract.
+       *  @return  *this
+       *
+       *  Returns @c getline(__s,__n,widen(&apos;\\n&apos;)).
+      */
+      __istream_type&
+      getline(char_type* __s, streamsize __n)
+      { return this->getline(__s, __n, this->widen('\n')); }
+
+      /**
+       *  @brief  Discarding characters
+       *  @param  __n  Number of characters to discard.
+       *  @param  __delim  A "stop" character.
+       *  @return  *this
+       *
+       *  Extracts characters and throws them away until one of the
+       *  following happens:
+       *  - if @a __n @c != @c std::numeric_limits<int>::max(), @a __n
+       *    characters are extracted
+       *  - the input sequence reaches end-of-file
+       *  - the next character equals @a __delim (in this case, the character
+       *    is extracted); note that this condition will never occur if
+       *    @a __delim equals @c traits::eof().
+       *
+       *  NB: Provide three overloads, instead of the single function
+       *  (with defaults) mandated by the Standard: this leads to a
+       *  better performing implementation, while still conforming to
+       *  the Standard.
+      */
+      __istream_type&
+      ignore(streamsize __n, int_type __delim);
+
+      __istream_type&
+      ignore(streamsize __n);
+
+      __istream_type&
+      ignore();
+
+      /**
+       *  @brief  Looking ahead in the stream
+       *  @return  The next character, or eof().
+       *
+       *  If, after constructing the sentry object, @c good() is false,
+       *  returns @c traits::eof().  Otherwise reads but does not extract
+       *  the next input character.
+      */
+      int_type
+      peek();
+
+      /**
+       *  @brief  Extraction without delimiters.
+       *  @param  __s  A character array.
+       *  @param  __n  Maximum number of characters to store.
+       *  @return  *this
+       *
+       *  If the stream state is @c good(), extracts characters and stores
+       *  them into @a __s until one of the following happens:
+       *  - @a __n characters are stored
+       *  - the input sequence reaches end-of-file, in which case the error
+       *    state is set to @c failbit|eofbit.
+       *
+       *  @note  This function is not overloaded on signed char and
+       *         unsigned char.
+      */
+      __istream_type&
+      read(char_type* __s, streamsize __n);
+
+      /**
+       *  @brief  Extraction until the buffer is exhausted, but no more.
+       *  @param  __s  A character array.
+       *  @param  __n  Maximum number of characters to store.
+       *  @return  The number of characters extracted.
+       *
+       *  Extracts characters and stores them into @a __s depending on the
+       *  number of characters remaining in the streambuf's buffer,
+       *  @c rdbuf()->in_avail(), called @c A here:
+       *  - if @c A @c == @c -1, sets eofbit and extracts no characters
+       *  - if @c A @c == @c 0, extracts no characters
+       *  - if @c A @c > @c 0, extracts @c min(A,n)
+       *
+       *  The goal is to empty the current buffer, and to not request any
+       *  more from the external input sequence controlled by the streambuf.
+      */
+      streamsize
+      readsome(char_type* __s, streamsize __n);
+
+      /**
+       *  @brief  Unextracting a single character.
+       *  @param  __c  The character to push back into the input stream.
+       *  @return  *this
+       *
+       *  If @c rdbuf() is not null, calls @c rdbuf()->sputbackc(c).
+       *
+       *  If @c rdbuf() is null or if @c sputbackc() fails, sets badbit in
+       *  the error state.
+       *
+       *  @note  This function first clears eofbit.  Since no characters
+       *         are extracted, the next call to @c gcount() will return 0,
+       *         as required by DR 60.
+      */
+      __istream_type&
+      putback(char_type __c);
+
+      /**
+       *  @brief  Unextracting the previous character.
+       *  @return  *this
+       *
+       *  If @c rdbuf() is not null, calls @c rdbuf()->sungetc(c).
+       *
+       *  If @c rdbuf() is null or if @c sungetc() fails, sets badbit in
+       *  the error state.
+       *
+       *  @note  This function first clears eofbit.  Since no characters
+       *         are extracted, the next call to @c gcount() will return 0,
+       *         as required by DR 60.
+      */
+      __istream_type&
+      unget();
+
+      /**
+       *  @brief  Synchronizing the stream buffer.
+       *  @return  0 on success, -1 on failure
+       *
+       *  If @c rdbuf() is a null pointer, returns -1.
+       *
+       *  Otherwise, calls @c rdbuf()->pubsync(), and if that returns -1,
+       *  sets badbit and returns -1.
+       *
+       *  Otherwise, returns 0.
+       *
+       *  @note  This function does not count the number of characters
+       *         extracted, if any, and therefore does not affect the next
+       *         call to @c gcount().
+      */
+      int
+      sync();
+
+      /**
+       *  @brief  Getting the current read position.
+       *  @return  A file position object.
+       *
+       *  If @c fail() is not false, returns @c pos_type(-1) to indicate
+       *  failure.  Otherwise returns @c rdbuf()->pubseekoff(0,cur,in).
+       *
+       *  @note  This function does not count the number of characters
+       *         extracted, if any, and therefore does not affect the next
+       *         call to @c gcount().  At variance with putback, unget and
+       *         seekg, eofbit is not cleared first.
+      */
+      pos_type
+      tellg();
+
+      /**
+       *  @brief  Changing the current read position.
+       *  @param  __pos  A file position object.
+       *  @return  *this
+       *
+       *  If @c fail() is not true, calls @c rdbuf()->pubseekpos(__pos).  If
+       *  that function fails, sets failbit.
+       *
+       *  @note  This function first clears eofbit.  It does not count the
+       *         number of characters extracted, if any, and therefore does
+       *         not affect the next call to @c gcount().
+      */
+      __istream_type&
+      seekg(pos_type);
+
+      /**
+       *  @brief  Changing the current read position.
+       *  @param  __off  A file offset object.
+       *  @param  __dir  The direction in which to seek.
+       *  @return  *this
+       *
+       *  If @c fail() is not true, calls @c rdbuf()->pubseekoff(__off,__dir).
+       *  If that function fails, sets failbit.
+       *
+       *  @note  This function first clears eofbit.  It does not count the
+       *         number of characters extracted, if any, and therefore does
+       *         not affect the next call to @c gcount().
+      */
+      __istream_type&
+      seekg(off_type, ios_base::seekdir);
+      ///@}
+
+    protected:
+      basic_istream()
+      : _M_gcount(streamsize(0))
+      { this->init(0); }
+
+#if __cplusplus >= 201103L
+      basic_istream(const basic_istream&) = delete;
+
+      basic_istream(basic_istream&& __rhs)
+      : __ios_type(), _M_gcount(__rhs._M_gcount)
+      {
+	__ios_type::move(__rhs);
+	__rhs._M_gcount = 0;
+      }
+
+      // 27.7.3.3 Assign/swap
+
+      basic_istream& operator=(const basic_istream&) = delete;
+
+      basic_istream&
+      operator=(basic_istream&& __rhs)
+      {
+	swap(__rhs);
+	return *this;
+      }
+
+      void
+      swap(basic_istream& __rhs)
+      {
+	__ios_type::swap(__rhs);
+	std::swap(_M_gcount, __rhs._M_gcount);
+      }
+#endif
+
+      template<typename _ValueT>
+	__istream_type&
+	_M_extract(_ValueT& __v);
     };
 
-    class sentry : public _Sentry_base {
+  /// Explicit specialization declarations, defined in src/istream.cc.
+  template<>
+    basic_istream<char>&
+    basic_istream<char>::
+    getline(char_type* __s, streamsize __n, char_type __delim);
+
+  template<>
+    basic_istream<char>&
+    basic_istream<char>::
+    ignore(streamsize __n);
+
+  template<>
+    basic_istream<char>&
+    basic_istream<char>::
+    ignore(streamsize __n, int_type __delim);
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+  template<>
+    basic_istream<wchar_t>&
+    basic_istream<wchar_t>::
+    getline(char_type* __s, streamsize __n, char_type __delim);
+
+  template<>
+    basic_istream<wchar_t>&
+    basic_istream<wchar_t>::
+    ignore(streamsize __n);
+
+  template<>
+    basic_istream<wchar_t>&
+    basic_istream<wchar_t>::
+    ignore(streamsize __n, int_type __delim);
+#endif
+
+  /**
+   *  @brief  Performs setup work for input streams.
+   *
+   *  Objects of this class are created before all of the standard
+   *  extractors are run.  It is responsible for <em>exception-safe
+   *  prefix and suffix operations,</em> although only prefix actions
+   *  are currently required by the standard.
+  */
+  template<typename _CharT, typename _Traits>
+    class basic_istream<_CharT, _Traits>::sentry
+    {
+      // Data Members.
+      bool _M_ok;
+
     public:
-        explicit __CLR_OR_THIS_CALL sentry(basic_istream& _Istr, bool _Noskip = false)
-            : _Sentry_base(_Istr), _Ok(_Sentry_base::_Myistr._Ipfx(_Noskip)) {}
+      /// Easy access to dependent types.
+      typedef _Traits 					traits_type;
+      typedef basic_streambuf<_CharT, _Traits> 		__streambuf_type;
+      typedef basic_istream<_CharT, _Traits> 		__istream_type;
+      typedef typename __istream_type::__ctype_type 	__ctype_type;
+      typedef typename _Traits::int_type		__int_type;
 
-        explicit __CLR_OR_THIS_CALL operator bool() const {
-            return _Ok;
-        }
+      /**
+       *  @brief  The constructor performs all the work.
+       *  @param  __is  The input stream to guard.
+       *  @param  __noskipws  Whether to consume whitespace or not.
+       *
+       *  If the stream state is good (@a __is.good() is true), then the
+       *  following actions are performed, otherwise the sentry state
+       *  is false (<em>not okay</em>) and failbit is set in the
+       *  stream state.
+       *
+       *  The sentry's preparatory actions are:
+       *
+       *  -# if the stream is tied to an output stream, @c is.tie()->flush()
+       *     is called to synchronize the output sequence
+       *  -# if @a __noskipws is false, and @c ios_base::skipws is set in
+       *     @c is.flags(), the sentry extracts and discards whitespace
+       *     characters from the stream.  The currently imbued locale is
+       *     used to determine whether each character is whitespace.
+       *
+       *  If the stream state is still good, then the sentry state becomes
+       *  true (@a okay).
+      */
+      explicit
+      sentry(basic_istream<_CharT, _Traits>& __is, bool __noskipws = false);
 
-        __CLR_OR_THIS_CALL sentry(const sentry&) = delete;
-        sentry& __CLR_OR_THIS_CALL operator=(const sentry&) = delete;
-
-    private:
-        bool _Ok; // true if _Ipfx succeeded at construction
+      /**
+       *  @brief  Quick status checking.
+       *  @return  The sentry state.
+       *
+       *  For ease of use, sentries may be converted to booleans.  The
+       *  return value is that of the sentry state (true == okay).
+      */
+#if __cplusplus >= 201103L
+      explicit
+#endif
+      operator bool() const
+      { return _M_ok; }
     };
 
-    bool __CLR_OR_THIS_CALL _Ipfx(bool _Noskip = false) { // test stream state and skip whitespace as needed
-        if (!this->good()) {
-            _Myios::setstate(ios_base::failbit);
-            return false;
-        }
+  ///@{
+  /**
+   *  @brief  Character extractors
+   *  @param  __in  An input stream.
+   *  @param  __c  A character reference.
+   *  @return  in
+   *
+   *  Behaves like one of the formatted arithmetic extractors described in
+   *  std::basic_istream.  After constructing a sentry object with good
+   *  status, this function extracts a character (if one is available) and
+   *  stores it in @a __c.  Otherwise, sets failbit in the input stream.
+  */
+  template<typename _CharT, typename _Traits>
+    basic_istream<_CharT, _Traits>&
+    operator>>(basic_istream<_CharT, _Traits>& __in, _CharT& __c);
 
-        // state okay, flush tied stream and skip whitespace
-        const auto _Tied = _Myios::tie();
-        if (_Tied) {
-            _Tied->flush();
-        }
+  template<class _Traits>
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, unsigned char& __c)
+    { return (__in >> reinterpret_cast<char&>(__c)); }
 
-        bool _Eof = false;
-        if (!_Noskip && this->flags() & ios_base::skipws) { // skip whitespace
-            const _Ctype& _Ctype_fac = _STD use_facet<_Ctype>(this->getloc());
+  template<class _Traits>
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, signed char& __c)
+    { return (__in >> reinterpret_cast<char&>(__c)); }
+  ///@}
 
-            _TRY_IO_BEGIN
-            int_type _Meta = _Myios::rdbuf()->sgetc();
 
-            for (;; _Meta = _Myios::rdbuf()->snextc()) {
-                if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                    _Eof = true;
-                    break;
-                } else if (!_Ctype_fac.is(_Ctype::space, _Traits::to_char_type(_Meta))) {
-                    break; // not whitespace, quit
-                }
-            }
-            _CATCH_IO_END
-        }
+  template<typename _CharT, typename _Traits>
+    void
+    __istream_extract(basic_istream<_CharT, _Traits>&, _CharT*, streamsize);
 
-        if (_Eof) {
-            _Myios::setstate(ios_base::eofbit | ios_base::failbit);
-        }
+  void __istream_extract(istream&, char*, streamsize);
 
-        return this->good();
+  ///@{
+  /**
+   *  @brief  Character string extractors
+   *  @param  __in  An input stream.
+   *  @param  __s  A character array (or a pointer to an array before C++20).
+   *  @return  __in
+   *
+   *  Behaves like one of the formatted arithmetic extractors described in
+   *  `std::basic_istream`.  After constructing a sentry object with good
+   *  status, this function extracts up to `n` characters and stores them
+   *  into the array `__s`.  `n` is defined as:
+   *
+   *  - if `width()` is greater than zero, `n` is `min(width(), n)`
+   *  - otherwise `n` is the number of elements of the array
+   *  - (before C++20 the pointer is assumed to point to an array of
+   *  - the largest possible size for an array of `char_type`).
+   *
+   *  Characters are extracted and stored until one of the following happens:
+   *  - `n - 1` characters are stored
+   *  - EOF is reached
+   *  - the next character is whitespace according to the current locale
+   *
+   *  `width(0)` is then called for the input stream.
+   *
+   *  If no characters are extracted, sets failbit.
+  */
+
+#if __cplusplus <= 201703L
+  template<typename _CharT, typename _Traits>
+    __attribute__((__nonnull__(2), __access__(__write_only__, 2)))
+    inline basic_istream<_CharT, _Traits>&
+    operator>>(basic_istream<_CharT, _Traits>& __in, _CharT* __s)
+    {
+      size_t __n = __builtin_object_size(__s, 0);
+      if (__builtin_expect(__n < sizeof(_CharT), false))
+	{
+	  // There is not even space for the required null terminator.
+	  __glibcxx_assert(__n >= sizeof(_CharT));
+	  __in.width(0);
+	  __in.setstate(ios_base::failbit);
+	}
+      else
+	{
+	  if (__n == (size_t)-1)
+	    __n = __gnu_cxx::__numeric_traits<streamsize>::__max;
+	  std::__istream_extract(__in, __s, __n / sizeof(_CharT));
+	}
+      return __in;
     }
 
-    // TRANSITION, ABI: non-Standard ipfx() is preserved for binary compatibility
-    bool __CLR_OR_THIS_CALL ipfx(bool _Noskip = false) { // test stream state and skip whitespace as needed
-        return _Ipfx(_Noskip);
+  template<class _Traits>
+    __attribute__((__nonnull__(2), __access__(__write_only__, 2)))
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, unsigned char* __s)
+    { return __in >> reinterpret_cast<char*>(__s); }
+
+  template<class _Traits>
+    __attribute__((__nonnull__(2), __access__(__write_only__, 2)))
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, signed char* __s)
+    { return __in >> reinterpret_cast<char*>(__s); }
+#else
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 2499. operator>>(istream&, char*) makes it hard to avoid buffer overflows
+  template<typename _CharT, typename _Traits, size_t _Num>
+    inline basic_istream<_CharT, _Traits>&
+    operator>>(basic_istream<_CharT, _Traits>& __in, _CharT (&__s)[_Num])
+    {
+      static_assert(_Num <= __gnu_cxx::__numeric_traits<streamsize>::__max);
+      std::__istream_extract(__in, __s, _Num);
+      return __in;
     }
 
-    // TRANSITION, ABI: non-Standard isfx() is preserved for binary compatibility
-    void __CLR_OR_THIS_CALL isfx() {} // perform any wrapup
+  template<class _Traits, size_t _Num>
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, unsigned char (&__s)[_Num])
+    { return __in >> reinterpret_cast<char(&)[_Num]>(__s); }
 
-#ifdef _M_CEE_PURE
-    basic_istream& __CLR_OR_THIS_CALL operator>>(basic_istream&(__clrcall* _Pfn)(basic_istream&) ) {
-        // call basic_istream manipulator
-        return _Pfn(*this);
+  template<class _Traits, size_t _Num>
+    inline basic_istream<char, _Traits>&
+    operator>>(basic_istream<char, _Traits>& __in, signed char (&__s)[_Num])
+    { return __in >> reinterpret_cast<char(&)[_Num]>(__s); }
+#endif
+  ///@}
+
+  /**
+   *  @brief  Template class basic_iostream
+   *  @ingroup io
+   *
+   *  @tparam _CharT  Type of character stream.
+   *  @tparam _Traits  Traits for character type, defaults to
+   *                   char_traits<_CharT>.
+   *
+   *  This class multiply inherits from the input and output stream classes
+   *  simply to provide a single interface.
+  */
+  template<typename _CharT, typename _Traits>
+    class basic_iostream
+    : public basic_istream<_CharT, _Traits>,
+      public basic_ostream<_CharT, _Traits>
+    {
+    public:
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // 271. basic_iostream missing typedefs
+      // Types (inherited):
+      typedef _CharT			 		char_type;
+      typedef typename _Traits::int_type 		int_type;
+      typedef typename _Traits::pos_type 		pos_type;
+      typedef typename _Traits::off_type 		off_type;
+      typedef _Traits			 		traits_type;
+
+      // Non-standard Types:
+      typedef basic_istream<_CharT, _Traits>		__istream_type;
+      typedef basic_ostream<_CharT, _Traits>		__ostream_type;
+
+      /**
+       *  @brief  Constructor does nothing.
+       *
+       *  Both of the parent classes are initialized with the same
+       *  streambuf pointer passed to this constructor.
+      */
+      explicit
+      basic_iostream(basic_streambuf<_CharT, _Traits>* __sb)
+      : __istream_type(__sb), __ostream_type(__sb) { }
+
+      /**
+       *  @brief  Destructor does nothing.
+      */
+      virtual
+      ~basic_iostream() { }
+
+    protected:
+      basic_iostream()
+      : __istream_type(), __ostream_type() { }
+
+#if __cplusplus >= 201103L
+      basic_iostream(const basic_iostream&) = delete;
+
+      basic_iostream(basic_iostream&& __rhs)
+      : __istream_type(std::move(__rhs)), __ostream_type(*this)
+      { }
+
+      // 27.7.3.3 Assign/swap
+
+      basic_iostream& operator=(const basic_iostream&) = delete;
+
+      basic_iostream&
+      operator=(basic_iostream&& __rhs)
+      {
+	swap(__rhs);
+	return *this;
+      }
+
+      void
+      swap(basic_iostream& __rhs)
+      { __istream_type::swap(__rhs); }
+#endif
+    };
+
+  /**
+   *  @brief  Quick and easy way to eat whitespace
+   *
+   *  This manipulator extracts whitespace characters, stopping when the
+   *  next character is non-whitespace, or when the input sequence is empty.
+   *  If the sequence is empty, @c eofbit is set in the stream, but not
+   *  @c failbit.
+   *
+   *  The current locale is used to distinguish whitespace characters.
+   *
+   *  Example:
+   *  @code
+   *     MyClass   mc;
+   *
+   *     std::cin >> std::ws >> mc;
+   *  @endcode
+   *  will skip leading whitespace before calling operator>> on cin and your
+   *  object.  Note that the same effect can be achieved by creating a
+   *  std::basic_istream::sentry inside your definition of operator>>.
+  */
+  template<typename _CharT, typename _Traits>
+    basic_istream<_CharT, _Traits>&
+    ws(basic_istream<_CharT, _Traits>& __is);
+
+#if __cplusplus >= 201103L
+  // C++11 27.7.2.6 Rvalue stream extraction [istream.rvalue]
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+  // 2328. Rvalue stream extraction should use perfect forwarding
+  // 1203. More useful rvalue stream insertion
+
+#if __cpp_lib_concepts
+  template<typename _Is, typename _Tp>
+    requires __derived_from_ios_base<_Is>
+      && requires (_Is& __is, _Tp&& __t) { __is >> std::forward<_Tp>(__t); }
+    using __rvalue_stream_extraction_t = _Is&&;
+#else
+  template<typename _Is, typename _Tp,
+	   typename = _Require_derived_from_ios_base<_Is>,
+	   typename = decltype(std::declval<_Is&>() >> std::declval<_Tp>())>
+    using __rvalue_stream_extraction_t = _Is&&;
+#endif
+
+  /**
+   *  @brief  Generic extractor for rvalue stream
+   *  @param  __is  An input stream.
+   *  @param  __x  A reference to the extraction target.
+   *  @return  __is
+   *
+   *  This is just a forwarding function to allow extraction from
+   *  rvalue streams since they won't bind to the extractor functions
+   *  that take an lvalue reference.
+  */
+  template<typename _Istream, typename _Tp>
+    inline __rvalue_stream_extraction_t<_Istream, _Tp>
+    operator>>(_Istream&& __is, _Tp&& __x)
+    {
+      __is >> std::forward<_Tp>(__x);
+      return std::move(__is);
     }
+#endif // C++11
 
-    basic_istream& __CLR_OR_THIS_CALL operator>>(_Myios&(__clrcall* _Pfn)(_Myios&) ) { // call basic_ios manipulator
-        _Pfn(*this);
-        return *this;
-    }
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
 
-    basic_istream& __CLR_OR_THIS_CALL operator>>(ios_base&(__clrcall* _Pfn)(ios_base&) ) { // call ios_base manipulator
-        _Pfn(*this);
-        return *this;
-    }
-#endif // _M_CEE_PURE
+#include <bits/istream.tcc>
 
-    basic_istream& __CLR_OR_THIS_CALL operator>>(basic_istream&(__cdecl* _Pfn)(basic_istream&) ) {
-        // call basic_istream manipulator
-        return _Pfn(*this);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(_Myios&(__cdecl* _Pfn)(_Myios&) ) { // call basic_ios manipulator
-        _Pfn(*this);
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(ios_base&(__cdecl* _Pfn)(ios_base&) ) { // call ios_base manipulator
-        _Pfn(*this);
-        return *this;
-    }
-
-private:
-    template <class _Ty>
-    basic_istream& _Common_extract_with_num_get(_Ty& _Val) { // formatted extract with num_get
-        ios_base::iostate _Err = ios_base::goodbit;
-        const sentry _Ok(*this);
-
-        if (_Ok) { // state okay, use facet to extract
-            _TRY_IO_BEGIN
-            _STD use_facet<_Nget>(this->getloc()).get(*this, {}, *this, _Err, _Val);
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_Err);
-        return *this;
-    }
-
-    template <class = void>
-    void _Increment_gcount() {
-        if (_Chcount != (numeric_limits<streamsize>::max)()) {
-            ++_Chcount;
-        }
-    }
-
-public:
-    basic_istream& __CLR_OR_THIS_CALL operator>>(bool& _Val) { // extract a boolean
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(short& _Val) { // extract a short
-        ios_base::iostate _Err = ios_base::goodbit;
-        const sentry _Ok(*this);
-
-        if (_Ok) { // state okay, use facet to extract
-            _TRY_IO_BEGIN
-            long _Lval;
-            _STD use_facet<_Nget>(this->getloc()).get(*this, {}, *this, _Err, _Lval);
-            if (_Lval < SHRT_MIN) {
-                _Err |= ios_base::failbit;
-                _Val = SHRT_MIN;
-            } else if (_Lval > SHRT_MAX) {
-                _Err |= ios_base::failbit;
-                _Val = SHRT_MAX;
-            } else {
-                _Val = static_cast<short>(_Lval);
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_Err);
-        return *this;
-    }
-
-    // NOTE:
-    // If you are not using native wchar_t, the unsigned short extractor
-    // is masked by an explicit specialization that treats an unsigned
-    // short as a wide character.
-
-    // To read or write unsigned shorts as integers with wchar_t streams,
-    // make wchar_t a native type with the command line option /Zc:wchar_t.
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(unsigned short& _Val) { // extract an unsigned short
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(int& _Val) { // extract an int
-        static_assert(sizeof(int) == sizeof(long), "Bad overflow assumptions due to sizeof(int) != sizeof(long)");
-        long _Result = _Val;
-        _Common_extract_with_num_get(_Result);
-        _Val = _Result;
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(unsigned int& _Val) { // extract an unsigned int
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(long& _Val) { // extract a long
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(unsigned long& _Val) { // extract an unsigned long
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(long long& _Val) { // extract a long long
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(unsigned long long& _Val) { // extract an unsigned long long
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(float& _Val) { // extract a float
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(double& _Val) { // extract a double
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(long double& _Val) { // extract a long double
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(void*& _Val) { // extract a void pointer
-        return _Common_extract_with_num_get(_Val);
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL operator>>(_Mysb* _Strbuf) { // extract until end-of-file into a stream buffer
-        _Chcount = 0; // behaves as an unformatted input function
-        const sentry _Ok(*this, true);
-        ios_base::iostate _State = ios_base::goodbit;
-        if (_Ok && _Strbuf) { // state okay, extract characters
-            _TRY_IO_BEGIN
-            for (int_type _Meta = _Myios::rdbuf()->sgetc();; _Meta = _Myios::rdbuf()->snextc()) {
-                if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                    _State |= ios_base::eofbit;
-                    break;
-                }
-                // got a character, insert it into buffer
-                _TRY_BEGIN
-                if (_Traits::eq_int_type(_Traits::eof(), _Strbuf->sputc(_Traits::to_char_type(_Meta)))) {
-                    break;
-                }
-
-                _CATCH_ALL
-                break;
-                _CATCH_END
-
-                _Increment_gcount();
-            }
-            _CATCH_IO_END
-        }
-
-        if (_Chcount == 0) { // If the function inserts no characters, it calls setstate(failbit)
-            _State |= ios_base::failbit;
-        }
-
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    int_type __CLR_OR_THIS_CALL get() { // extract a metacharacter
-        int_type _Meta           = 0;
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (!_Ok) {
-            _Meta = _Traits::eof(); // state not okay, return EOF
-        } else { // state okay, extract a character
-            _TRY_IO_BEGIN
-            _Meta = _Myios::rdbuf()->sgetc();
-
-            if (_Traits::eq_int_type(_Traits::eof(), _Meta)) {
-                _State |= ios_base::eofbit | ios_base::failbit; // end of file
-            } else { // got a character, count it
-                _Myios::rdbuf()->sbumpc();
-                _Chcount = 1;
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return _Meta;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL get(_Elem* _Str, streamsize _Count) { // get up to _Count characters into NTCS
-        return get(_Str, _Count, _Myios::widen('\n'));
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL get(
-        _Elem* _Str, streamsize _Count, _Elem _Delim) { // get up to _Count characters into NTCS, stop before _Delim
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (_Ok && 0 < _Count) { // state okay, extract characters
-            _TRY_IO_BEGIN
-            int_type _Meta = _Myios::rdbuf()->sgetc();
-
-            for (; 0 < --_Count; _Meta = _Myios::rdbuf()->snextc()) {
-                if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                    _State |= ios_base::eofbit;
-                    break;
-                } else if (_Traits::to_char_type(_Meta) == _Delim) {
-                    break; // got a delimiter, quit
-                } else { // got a character, add it to string
-                    *_Str++ = _Traits::to_char_type(_Meta);
-                    _Increment_gcount();
-                }
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_Chcount == 0 ? _State | ios_base::failbit : _State);
-        *_Str = _Elem(); // add terminating null character
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL get(_Elem& _Ch) { // get a character
-        int_type _Meta = get();
-        if (!_Traits::eq_int_type(_Traits::eof(), _Meta)) {
-            _Ch = _Traits::to_char_type(_Meta);
-        }
-
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL get(_Mysb& _Strbuf) { // extract up to newline and insert into stream buffer
-        return get(_Strbuf, _Myios::widen('\n'));
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL get(
-        _Mysb& _Strbuf, _Elem _Delim) { // extract up to delimiter and insert into stream buffer
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (_Ok) { // state okay, use facet to extract
-            _TRY_IO_BEGIN
-            int_type _Meta = _Myios::rdbuf()->sgetc();
-
-            for (;; _Meta = _Myios::rdbuf()->snextc()) {
-                if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                    _State |= ios_base::eofbit;
-                    break;
-                } else { // got a character, insert it into stream buffer
-                    _TRY_BEGIN
-                    _Elem _Ch = _Traits::to_char_type(_Meta);
-                    if (_Ch == _Delim || _Traits::eq_int_type(_Traits::eof(), _Strbuf.sputc(_Ch))) {
-                        break;
-                    }
-                    _CATCH_ALL
-                    break;
-                    _CATCH_END
-                    _Increment_gcount();
-                }
-            }
-            _CATCH_IO_END
-        }
-
-        if (_Chcount == 0) {
-            _State |= ios_base::failbit;
-        }
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL getline(
-        _Elem* _Str, streamsize _Count) { // get up to _Count characters into NTCS, discard newline
-        return getline(_Str, _Count, _Myios::widen('\n'));
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL getline(
-        _Elem* _Str, streamsize _Count, _Elem _Delim) { // get up to _Count characters into NTCS, discard _Delim
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (_Ok && 0 < _Count) { // state okay, use facet to extract
-            int_type _Metadelim = _Traits::to_int_type(_Delim);
-
-            _TRY_IO_BEGIN
-            int_type _Meta = _Myios::rdbuf()->sgetc();
-
-            for (;; _Meta = _Myios::rdbuf()->snextc()) {
-                if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                    _State |= ios_base::eofbit;
-                    break;
-                } else if (_Meta == _Metadelim) { // got a delimiter, discard it and quit
-                    _Increment_gcount();
-                    _Myios::rdbuf()->sbumpc();
-                    break;
-                } else if (--_Count <= 0) { // buffer full, quit
-                    _State |= ios_base::failbit;
-                    break;
-                } else { // got a character, add it to string
-                    *_Str++ = _Traits::to_char_type(_Meta);
-                    _Increment_gcount();
-                }
-            }
-            _CATCH_IO_END
-        }
-
-        *_Str = _Elem(); // add terminating null character
-        _Myios::setstate(_Chcount == 0 ? _State | ios_base::failbit : _State);
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL ignore(streamsize _Count = 1,
-        int_type _Metadelim = _Traits::eof()) { // ignore up to _Count characters, discarding delimiter
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (_Ok && 0 < _Count) { // state okay, use facet to extract
-            _TRY_IO_BEGIN
-            for (;;) { // get a metacharacter if more room in buffer
-                int_type _Meta;
-                if (_Count != (numeric_limits<streamsize>::max)() && --_Count < 0) {
-                    break; // buffer full, quit
-                } else if (_Traits::eq_int_type(_Traits::eof(),
-                               _Meta = _Myios::rdbuf()->sbumpc())) { // end of file, quit
-                    _State |= ios_base::eofbit;
-                    break;
-                } else { // got a character, count it
-                    _Increment_gcount();
-                    if (_Meta == _Metadelim) {
-                        break; // got a delimiter, quit
-                    }
-                }
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL read(_Elem* _Str, streamsize _Count) { // read up to _Count characters into buffer
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-
-        if (_Ok && 0 < _Count) { // state okay, use facet to extract
-            _TRY_IO_BEGIN
-            const streamsize _Num = _Myios::rdbuf()->sgetn(_Str, _Count);
-            _Chcount              = _Num;
-
-            if (_Num != _Count) {
-                _State |= ios_base::eofbit | ios_base::failbit; // short read
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    streamsize __CLR_OR_THIS_CALL readsome(_Elem* _Str,
-        streamsize _Count) { // read up to _Count characters into buffer, without blocking
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        const sentry _Ok(*this, true);
-        streamsize _Num;
-
-        if (!_Ok) {
-            _State |= ios_base::failbit; // no buffer, fail
-        } else if ((_Num = _Myios::rdbuf()->in_avail()) < 0) {
-            _State |= ios_base::eofbit; // no characters available
-        } else if (0 < _Count && 0 < _Num) { // read available
-            read(_Str, _Num < _Count ? _Num : _Count);
-        }
-
-        _Myios::setstate(_State);
-        return gcount();
-    }
-
-    int_type __CLR_OR_THIS_CALL peek() {
-        ios_base::iostate _State = ios_base::goodbit;
-        _Chcount                 = 0;
-        int_type _Meta           = 0;
-        const sentry _Ok(*this, true);
-
-        if (!_Ok) {
-            _Meta = _Traits::eof(); // state not okay, return EOF
-        } else { // state okay, read a character
-            _TRY_IO_BEGIN
-            if (_Traits::eq_int_type(_Traits::eof(), _Meta = _Myios::rdbuf()->sgetc())) {
-                _State |= ios_base::eofbit;
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return _Meta;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL putback(_Elem _Ch) { // put back a character
-        _Chcount                    = 0;
-        ios_base::iostate _State    = ios_base::goodbit;
-        ios_base::iostate _Oldstate = _Myios::rdstate();
-        _Myios::clear(_Oldstate & ~ios_base::eofbit);
-        const sentry _Ok(*this, true);
-
-        if (_Ok) { // state okay, put character back
-            _TRY_IO_BEGIN
-            if (_Traits::eq_int_type(_Traits::eof(), _Myios::rdbuf()->sputbackc(_Ch))) {
-                _State |= ios_base::badbit | _Oldstate;
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL unget() { // put back last read character
-        _Chcount                    = 0;
-        ios_base::iostate _State    = ios_base::goodbit;
-        ios_base::iostate _Oldstate = _Myios::rdstate();
-        _Myios::clear(_Oldstate & ~ios_base::eofbit);
-        const sentry _Ok(*this, true);
-
-        if (_Ok) { // state okay, put character back
-            _TRY_IO_BEGIN
-            if (_Traits::eq_int_type(_Traits::eof(), _Myios::rdbuf()->sungetc())) {
-                _State |= ios_base::badbit | _Oldstate;
-            }
-            _CATCH_IO_END
-        }
-
-        _Myios::setstate(_State);
-        return *this;
-    }
-
-    _NODISCARD streamsize __CLR_OR_THIS_CALL gcount() const { // get count from last extraction
-        return _Chcount;
-    }
-
-    int __CLR_OR_THIS_CALL sync() { // synchronize with input source
-        const sentry _Ok(*this, true);
-
-        const auto _Rdbuf = _Myios::rdbuf();
-        if (!_Rdbuf) {
-            return -1;
-        }
-
-        bool _Sync_failed = true; // sync fails if an exception is thrown
-        _TRY_IO_BEGIN
-        _Sync_failed = _Rdbuf->pubsync() == -1;
-        _CATCH_IO_END
-        if (_Sync_failed) {
-            _Myios::setstate(ios_base::badbit);
-            return -1;
-        }
-
-        return 0;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL seekg(pos_type _Pos) { // set input stream position to _Pos
-        ios_base::iostate _State    = ios_base::goodbit;
-        ios_base::iostate _Oldstate = _Myios::rdstate();
-        _Myios::clear(_Oldstate & ~ios_base::eofbit);
-        const sentry _Ok(*this, true);
-
-        if (!this->fail() && static_cast<off_type>(_Myios::rdbuf()->pubseekpos(_Pos, ios_base::in)) == -1) {
-            _Myios::setstate(_State | ios_base::failbit);
-        }
-
-        return *this;
-    }
-
-    basic_istream& __CLR_OR_THIS_CALL seekg(
-        off_type _Off, ios_base::seekdir _Way) { // change input stream position by _Off, according to _Way
-        ios_base::iostate _State    = ios_base::goodbit;
-        ios_base::iostate _Oldstate = _Myios::rdstate();
-        _Myios::clear(_Oldstate & ~ios_base::eofbit);
-        const sentry _Ok(*this, true);
-
-        if (!this->fail() && static_cast<off_type>(_Myios::rdbuf()->pubseekoff(_Off, _Way, ios_base::in)) == -1) {
-            _Myios::setstate(_State | ios_base::failbit);
-        }
-
-        return *this;
-    }
-
-    pos_type __CLR_OR_THIS_CALL tellg() {
-        const sentry _Ok(*this, true);
-
-        if (!this->fail()) {
-            return _Myios::rdbuf()->pubseekoff(0, ios_base::cur, ios_base::in);
-        } else {
-            return pos_type(-1);
-        }
-    }
-
-private:
-    streamsize _Chcount; // the character count
-};
-
-#pragma vtordisp(pop) // compiler bug workaround
-
-#ifndef _NATIVE_WCHAR_T_DEFINED
-template <class _Elem, class _Traits>
-basic_istream<_Elem, _Traits>& operator>>(basic_istream<_Elem, _Traits>& _Istr, _Elem& _Ch);
-
-// NOTE:
-// If you are not using native wchar_t, the following explicit
-// specialization will mask the member function (above) that treats
-// an unsigned short as an integer.
-
-// To read or write unsigned shorts as integers with wchar_t streams,
-// make wchar_t a native type with the command line option /Zc:wchar_t.
-
-template <>
-inline basic_istream<unsigned short, char_traits<unsigned short>>& __CLR_OR_THIS_CALL basic_istream<unsigned short,
-    char_traits<unsigned short>>::operator>>(unsigned short& _Ch) { // extract a character
-    return _STD operator>>(*this, _Ch);
-}
-#endif // _NATIVE_WCHAR_T_DEFINED
-
-#if defined(_DLL_CPPLIB)
-
-#if !defined(_CRTBLD) || defined(__FORCE_INSTANCE)
-template class _CRTIMP2_PURE_IMPORT basic_istream<char, char_traits<char>>;
-template class _CRTIMP2_PURE_IMPORT basic_istream<wchar_t, char_traits<wchar_t>>;
-#endif // !defined(_CRTBLD) || defined(__FORCE_INSTANCE)
-
-#ifdef __FORCE_INSTANCE
-template class _CRTIMP2_PURE_IMPORT basic_istream<unsigned short, char_traits<unsigned short>>;
-#endif // __FORCE_INSTANCE
-#endif // defined(_DLL_CPPLIB)
-
-// CLASS TEMPLATE basic_iostream
-template <class _Elem, class _Traits>
-class basic_iostream : public basic_istream<_Elem, _Traits>,
-                       public basic_ostream<_Elem, _Traits> { // control insertions and extractions from a stream buffer
-public:
-    using _Myis       = basic_istream<_Elem, _Traits>;
-    using _Myos       = basic_ostream<_Elem, _Traits>;
-    using _Myios      = basic_ios<_Elem, _Traits>;
-    using char_type   = _Elem;
-    using traits_type = _Traits;
-    using int_type    = typename _Traits::int_type;
-    using pos_type    = typename _Traits::pos_type;
-    using off_type    = typename _Traits::off_type;
-
-    explicit __CLR_OR_THIS_CALL basic_iostream(basic_streambuf<_Elem, _Traits>* _Strbuf)
-        : _Myis(_Strbuf, false), _Myos(_Noinit, false) {}
-
-protected:
-    __CLR_OR_THIS_CALL basic_iostream(basic_iostream&& _Right) : _Myis(_Right.rdbuf(), false), _Myos(_Noinit, false) {
-        _Myios::init();
-        _Myios::move(_STD move(_Right));
-    }
-
-    basic_iostream& __CLR_OR_THIS_CALL operator=(basic_iostream&& _Right) {
-        this->swap(_Right);
-        return *this;
-    }
-
-    void __CLR_OR_THIS_CALL swap(basic_iostream& _Right) {
-        if (this != _STD addressof(_Right)) {
-            _Myios::swap(_Right);
-        }
-    }
-
-public:
-    __CLR_OR_THIS_CALL basic_iostream(const basic_iostream&) = delete;
-    basic_iostream& __CLR_OR_THIS_CALL operator=(const basic_iostream&) = delete;
-
-    virtual __CLR_OR_THIS_CALL ~basic_iostream() noexcept {}
-};
-
-#if defined(_DLL_CPPLIB)
-
-#if !defined(_CRTBLD) || defined(__FORCE_INSTANCE)
-template class _CRTIMP2_PURE_IMPORT basic_iostream<char, char_traits<char>>;
-template class _CRTIMP2_PURE_IMPORT basic_iostream<wchar_t, char_traits<wchar_t>>;
-#endif // !defined(_CRTBLD) || defined(__FORCE_INSTANCE)
-
-#ifdef __FORCE_INSTANCE
-template class _CRTIMP2_PURE_IMPORT basic_iostream<unsigned short, char_traits<unsigned short>>;
-#endif // __FORCE_INSTANCE
-#endif // defined(_DLL_CPPLIB)
-
-// EXTRACTORS
-
-template <class _Elem, class _Traits>
-basic_istream<_Elem, _Traits>& _Istream_extract_into_buffer(
-    basic_istream<_Elem, _Traits>& _Istr, size_t _Size, _Elem* _Str) {
-    using _Myis              = basic_istream<_Elem, _Traits>;
-    using _Ctype             = ctype<_Elem>;
-    ios_base::iostate _State = ios_base::goodbit;
-    size_t _Current          = 0;
-    const typename _Myis::sentry _Ok(_Istr);
-
-    if (_Ok) { // state okay, extract characters
-        const _Ctype& _Ctype_fac = _STD use_facet<_Ctype>(_Istr.getloc());
-
-        _TRY_IO_BEGIN
-        size_t _Count       = _Size;
-        const size_t _Width = static_cast<size_t>(_Istr.width());
-        if (_Width > 0 && _Width < _Size) {
-            _Count = _Width;
-        }
-
-        typename _Myis::int_type _Meta = _Istr.rdbuf()->sgetc();
-        _Elem _Ch;
-
-        for (; _Current < _Count - 1; _Meta = _Istr.rdbuf()->snextc(), (void) ++_Current) {
-            if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                _State |= ios_base::eofbit;
-                break;
-            } else if (_Ctype_fac.is(_Ctype::space, _Ch = _Traits::to_char_type(_Meta)) || _Ch == _Elem()) {
-                break; // whitespace or nul, quit
-            } else {
-                _Str[_Current] = _Traits::to_char_type(_Meta); // add it to string
-            }
-        }
-        _CATCH_IO_(ios_base, _Istr)
-    }
-    __analysis_assume(static_cast<size_t>(_Current) < _Size); // TRANSITION, VSO-860375
-    _Str[_Current] = _Elem(); // add terminating null character
-    _Istr.width(0);
-    if (_Current == 0) {
-        _State |= ios_base::failbit;
-    }
-    _Istr.setstate(_State);
-    return _Istr;
-}
-
-#if _HAS_CXX20 // P0487R1 Fixing operator>>(basic_istream&, CharT*)
-#pragma warning(push)
-#pragma warning(disable : 6001) // Using uninitialized memory '_Str'.
-template <class _Elem, class _Traits, size_t _Size>
-basic_istream<_Elem, _Traits>& operator>>(
-    basic_istream<_Elem, _Traits>& _Istr, _Out_writes_z_(_Size) _Elem (&_Str)[_Size]) {
-    return _Istream_extract_into_buffer(_Istr, _Size, _Str);
-}
-
-template <class _Traits, size_t _Size>
-basic_istream<char, _Traits>& operator>>(
-    basic_istream<char, _Traits>& _Istr, _Out_writes_z_(_Size) signed char (&_Str)[_Size]) {
-    return _Istream_extract_into_buffer(_Istr, _Size, reinterpret_cast<char*>(_Str));
-}
-
-template <class _Traits, size_t _Size>
-basic_istream<char, _Traits>& operator>>(
-    basic_istream<char, _Traits>& _Istr, _Out_writes_z_(_Size) unsigned char (&_Str)[_Size]) {
-    return _Istream_extract_into_buffer(_Istr, _Size, reinterpret_cast<char*>(_Str));
-}
-#pragma warning(pop)
-#else // _HAS_CXX20
-template <class _Elem, class _Traits>
-basic_istream<_Elem, _Traits>& operator>>(basic_istream<_Elem, _Traits>& _Istr, _Elem* _Str) {
-    return _Istream_extract_into_buffer(_Istr, SIZE_MAX, _Str);
-}
-
-template <class _Traits>
-basic_istream<char, _Traits>& operator>>(basic_istream<char, _Traits>& _Istr, signed char* _Str) {
-    return _Istream_extract_into_buffer(_Istr, SIZE_MAX, reinterpret_cast<char*>(_Str));
-}
-
-template <class _Traits>
-basic_istream<char, _Traits>& operator>>(basic_istream<char, _Traits>& _Istr, unsigned char* _Str) {
-    return _Istream_extract_into_buffer(_Istr, SIZE_MAX, reinterpret_cast<char*>(_Str));
-}
-#endif // _HAS_CXX20
-
-template <class _Elem, class _Traits>
-basic_istream<_Elem, _Traits>& operator>>(basic_istream<_Elem, _Traits>& _Istr, _Elem& _Ch) { // extract a character
-    using _Myis = basic_istream<_Elem, _Traits>;
-
-    typename _Myis::int_type _Meta;
-    ios_base::iostate _State = ios_base::goodbit;
-    const typename _Myis::sentry _Ok(_Istr);
-
-    if (_Ok) { // state okay, extract characters
-        _TRY_IO_BEGIN
-        _Meta = _Istr.rdbuf()->sbumpc();
-        if (_Traits::eq_int_type(_Traits::eof(), _Meta)) {
-            _State |= ios_base::eofbit | ios_base::failbit; // end of file
-        } else {
-            _Ch = _Traits::to_char_type(_Meta); // got a character
-        }
-        _CATCH_IO_(ios_base, _Istr)
-    }
-
-    _Istr.setstate(_State);
-    return _Istr;
-}
-
-template <class _Traits>
-basic_istream<char, _Traits>& operator>>(
-    basic_istream<char, _Traits>& _Istr, signed char& _Ch) { // extract a signed char
-    return _Istr >> reinterpret_cast<char&>(_Ch);
-}
-
-template <class _Traits>
-basic_istream<char, _Traits>& operator>>(
-    basic_istream<char, _Traits>& _Istr, unsigned char& _Ch) { // extract an unsigned char
-    return _Istr >> reinterpret_cast<char&>(_Ch);
-}
-
-template <class _Istr, class _Ty, class = void>
-struct _Can_stream_in : false_type {};
-
-template <class _Istr, class _Ty>
-struct _Can_stream_in<_Istr, _Ty, void_t<decltype(_STD declval<_Istr&>() >> _STD declval<_Ty>())>> : true_type {};
-
-template <class _Istr, class _Ty,
-    enable_if_t<conjunction_v<is_convertible<_Istr*, ios_base*>, _Can_stream_in<_Istr, _Ty>>, int> = 0>
-_Istr&& operator>>(_Istr&& _Is, _Ty&& _Val) { // extract from rvalue stream
-    _Is >> _STD forward<_Ty>(_Val);
-    return _STD move(_Is);
-}
-
-// MANIPULATORS
-template <class _Elem, class _Traits>
-basic_istream<_Elem, _Traits>& __CLRCALL_OR_CDECL ws(basic_istream<_Elem, _Traits>& _Istr) { // consume whitespace
-    const typename basic_istream<_Elem, _Traits>::sentry _Ok(_Istr, true);
-
-    if (_Ok) { // state okay, extract characters
-        ios_base::iostate _State = ios_base::goodbit;
-        const auto& _Ctype_fac   = _STD use_facet<ctype<_Elem>>(_Istr.getloc());
-
-        _TRY_IO_BEGIN
-        for (typename _Traits::int_type _Meta = _Istr.rdbuf()->sgetc();; _Meta = _Istr.rdbuf()->snextc()) {
-            if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                _State |= ios_base::eofbit;
-                break;
-            } else if (!_Ctype_fac.is(ctype<_Elem>::space, _Traits::to_char_type(_Meta))) {
-                break; // not whitespace, quit
-            }
-        }
-        _CATCH_IO_(ios_base, _Istr)
-        _Istr.setstate(_State);
-    }
-
-    return _Istr;
-}
-_STD_END
-
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _ISTREAM_
+#endif	/* _GLIBCXX_ISTREAM */

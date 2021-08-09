@@ -1,47 +1,76 @@
-// list experimental header
+// <experimental/list> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2015-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _EXPERIMENTAL_LIST_
-#define _EXPERIMENTAL_LIST_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/list
+ *  This is a TS C++ Library header.
+ *  @ingroup libfund-ts
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_LIST
+#define _GLIBCXX_EXPERIMENTAL_LIST 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
 
 #include <list>
+#include <experimental/memory_resource>
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-_STD_BEGIN
-namespace experimental {
-    inline namespace fundamentals_v2 {
+namespace experimental
+{
+inline namespace fundamentals_v2
+{
+  template<typename _Tp, typename _Alloc, typename _Predicate>
+    inline void
+    erase_if(list<_Tp, _Alloc>& __cont, _Predicate __pred)
+    { __cont.remove_if(__pred); }
 
-        // FUNCTION TEMPLATE erase_if
-        template <class _Ty, class _Alloc, class _Pr>
-        _DEPRECATE_EXPERIMENTAL_ERASE void erase_if(list<_Ty, _Alloc>& _Cont, _Pr _Pred) {
-            _Cont.remove_if(_Pass_fn(_Pred));
-        }
+  template<typename _Tp, typename _Alloc, typename _Up>
+    inline void
+    erase(list<_Tp, _Alloc>& __cont, const _Up& __value)
+    {
+      using __elem_type = typename list<_Tp, _Alloc>::value_type;
+      experimental::erase_if(__cont, [&](__elem_type& __elem) {
+	  return __elem == __value;
+      });
+    }
 
-        // FUNCTION TEMPLATE erase
-        template <class _Ty, class _Alloc, class _Uty>
-        _DEPRECATE_EXPERIMENTAL_ERASE void erase(list<_Ty, _Alloc>& _Cont, const _Uty& _Val) {
-            _Cont.remove_if([&](_Ty& _Elem) { return _Elem == _Val; });
-        }
+namespace pmr {
+  template<typename _Tp>
+    using list = std::list<_Tp, polymorphic_allocator<_Tp>>;
+} // namespace pmr
 
-    } // namespace fundamentals_v2
+} // namespace fundamentals_v2
 } // namespace experimental
-_STD_END
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
 
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _EXPERIMENTAL_LIST_
+#endif // C++14
+
+#endif // _GLIBCXX_EXPERIMENTAL_LIST

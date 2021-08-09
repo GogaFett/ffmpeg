@@ -1,27 +1,52 @@
-// cctype standard header (core)
+// -*- C++ -*- forwarding header.
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 1997-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _CCTYPE_
-#define _CCTYPE_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/cctype
+ *  This is a Standard C++ Library file.  You should @c \#include this file
+ *  in your programs, rather than any of the @a *.h implementation files.
+ *
+ *  This is the C++ version of the Standard C Library header @c ctype.h,
+ *  and its contents are (mostly) the same as that header, but are all
+ *  contained in the namespace @c std (except for names which are defined
+ *  as macros in C).
+ */
+
+//
+// ISO C++ 14882: <ccytpe>
+//
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
 #include <ctype.h>
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+#ifndef _GLIBCXX_CCTYPE
+#define _GLIBCXX_CCTYPE 1
 
-// remove any (improper) macro overrides
+// Get rid of those macros defined in <ctype.h> in lieu of real functions.
 #undef isalnum
 #undef isalpha
-#undef isblank
 #undef iscntrl
 #undef isdigit
 #undef isgraph
@@ -34,28 +59,36 @@ _STL_DISABLE_CLANG_WARNINGS
 #undef tolower
 #undef toupper
 
-_STD_BEGIN
-using _CSTD isalnum;
-using _CSTD isalpha;
-using _CSTD iscntrl;
-using _CSTD isdigit;
-using _CSTD isgraph;
-using _CSTD islower;
-using _CSTD isprint;
-using _CSTD ispunct;
-using _CSTD isspace;
-using _CSTD isupper;
-using _CSTD isxdigit;
-using _CSTD tolower;
-using _CSTD toupper;
+namespace std
+{
+  using ::isalnum;
+  using ::isalpha;
+  using ::iscntrl;
+  using ::isdigit;
+  using ::isgraph;
+  using ::islower;
+  using ::isprint;
+  using ::ispunct;
+  using ::isspace;
+  using ::isupper;
+  using ::isxdigit;
+  using ::tolower;
+  using ::toupper;
+} // namespace std
 
-using _CSTD isblank;
-_STD_END
+#if __cplusplus >= 201103L
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
+#ifdef _GLIBCXX_USE_C99_CTYPE_TR1
 
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _CCTYPE_
+#undef isblank
+
+namespace std
+{
+  using ::isblank;
+} // namespace std
+
+#endif // _GLIBCXX_USE_C99_CTYPE_TR1
+
+#endif // C++11
+
+#endif

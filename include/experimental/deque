@@ -1,47 +1,77 @@
-// deque experimental header
+// <experimental/deque> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2015-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _EXPERIMENTAL_DEQUE_
-#define _EXPERIMENTAL_DEQUE_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file experimental/deque
+ *  This is a TS C++ Library header.
+ *  @ingroup libfund-ts
+ */
+
+#ifndef _GLIBCXX_EXPERIMENTAL_DEQUE
+#define _GLIBCXX_EXPERIMENTAL_DEQUE 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201402L
 
 #include <deque>
+#include <algorithm>
+#include <experimental/memory_resource>
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-_STD_BEGIN
-namespace experimental {
-    inline namespace fundamentals_v2 {
+namespace experimental
+{
+inline namespace fundamentals_v2
+{
+  template<typename _Tp, typename _Alloc, typename _Predicate>
+    inline void
+    erase_if(deque<_Tp, _Alloc>& __cont, _Predicate __pred)
+    {
+      __cont.erase(std::remove_if(__cont.begin(), __cont.end(), __pred),
+		   __cont.end());
+    }
 
-        // FUNCTION TEMPLATE erase_if
-        template <class _Ty, class _Alloc, class _Pr>
-        _DEPRECATE_EXPERIMENTAL_ERASE void erase_if(deque<_Ty, _Alloc>& _Cont, _Pr _Pred) {
-            _Erase_remove_if(_Cont, _Pass_fn(_Pred));
-        }
+  template<typename _Tp, typename _Alloc, typename _Up>
+    inline void
+    erase(deque<_Tp, _Alloc>& __cont, const _Up& __value)
+    {
+      __cont.erase(std::remove(__cont.begin(), __cont.end(), __value),
+		   __cont.end());
+    }
 
-        // FUNCTION TEMPLATE erase
-        template <class _Ty, class _Alloc, class _Uty>
-        _DEPRECATE_EXPERIMENTAL_ERASE void erase(deque<_Ty, _Alloc>& _Cont, const _Uty& _Val) {
-            _Erase_remove(_Cont, _Val);
-        }
+  namespace pmr {
+    template<typename _Tp>
+      using deque = std::deque<_Tp, polymorphic_allocator<_Tp>>;
 
-    } // namespace fundamentals_v2
+  } // namespace pmr
+} // namespace fundamentals_v2
 } // namespace experimental
-_STD_END
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
+#endif // C++14
 
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _EXPERIMENTAL_DEQUE_
+#endif // _GLIBCXX_EXPERIMENTAL_DEQUE

@@ -1,66 +1,92 @@
-// source_location standard header (core)
+// <source_location> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2020-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _SOURCE_LOCATION_
-#define _SOURCE_LOCATION_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
-#ifndef __cpp_consteval
-#pragma message("The contents of <source_location> are available only with C++20 consteval support.")
-#else // ^^^ !defined(__cpp_consteval) / defined(__cpp_consteval) vvv
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#include <cstdint>
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
 
-_STD_BEGIN
-struct source_location {
-    _NODISCARD static consteval source_location current(const uint_least32_t _Line_ = __builtin_LINE(),
-        const uint_least32_t _Column_ = __builtin_COLUMN(), const char* const _File_ = __builtin_FILE(),
-        const char* const _Function_ = __builtin_FUNCTION()) noexcept {
-        source_location _Result;
-        _Result._Line     = _Line_;
-        _Result._Column   = _Column_;
-        _Result._File     = _File_;
-        _Result._Function = _Function_;
-        return _Result;
+/** @file include/source_location
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_SRCLOC
+#define _GLIBCXX_SRCLOC 1
+
+#if __cplusplus > 201703L && __has_builtin(__builtin_source_location)
+#include <bits/c++config.h>
+
+namespace std
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#define __cpp_lib_source_location 201907L
+
+  /// A class that describes a location in source code.
+  struct source_location
+  {
+  private:
+    using uint_least32_t = __UINT_LEAST32_TYPE__;
+
+  public:
+
+    // [support.srcloc.cons], creation
+    static consteval source_location
+    current(const void* __p = __builtin_source_location()) noexcept
+    {
+      source_location __ret;
+      __ret._M_impl = static_cast <const __impl*>(__p);
+      return __ret;
     }
 
-    _NODISCARD_CTOR constexpr source_location() noexcept = default;
+    constexpr source_location() noexcept { }
 
-    _NODISCARD constexpr uint_least32_t line() const noexcept {
-        return _Line;
-    }
-    _NODISCARD constexpr uint_least32_t column() const noexcept {
-        return _Column;
-    }
-    _NODISCARD constexpr const char* file_name() const noexcept {
-        return _File;
-    }
-    _NODISCARD constexpr const char* function_name() const noexcept {
-        return _Function;
-    }
+    // [support.srcloc.obs], observers
+    constexpr uint_least32_t
+    line() const noexcept
+    { return _M_impl ? _M_impl->_M_line : 0u; }
 
-private:
-    uint_least32_t _Line{};
-    uint_least32_t _Column{};
-    const char* _File     = "";
-    const char* _Function = "";
-};
-_STD_END
+    constexpr uint_least32_t
+    column() const noexcept
+    { return _M_impl ? _M_impl->_M_column : 0u; }
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // !defined(__cpp_consteval)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _SOURCE_LOCATION_
+    constexpr const char*
+    file_name() const noexcept
+    { return _M_impl ? _M_impl->_M_file_name : ""; }
+
+    constexpr const char*
+    function_name() const noexcept
+    { return _M_impl ? _M_impl->_M_function_name : ""; }
+
+  private:
+    struct __impl
+    {
+      const char* _M_file_name;
+      const char* _M_function_name;
+      unsigned _M_line;
+      unsigned _M_column;
+    };
+
+    const __impl* _M_impl = nullptr;
+  };
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
+#endif // C++20 && __builtin_source_location
+#endif // _GLIBCXX_SRCLOC

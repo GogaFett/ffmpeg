@@ -1,35 +1,42 @@
+// -*- C++ -*- compatibility header.
+
+// Copyright (C) 2007-2021 Free Software Foundation, Inc.
 //
-// tgmath.h
-//
-//      Copyright (c) Microsoft Corporation. All rights reserved.
-//
-// The type-generic math library.
-//
-#pragma once
-#ifndef _TGMATH
-#define _TGMATH
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#include <corecrt.h>
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#if (_CRT_HAS_CXX17 == 1) && !defined(_CRT_USE_C_TGMATH_H)
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
 
-#include <ctgmath>
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
 
-#else // ^^^^ /std:c++17 ^^^^ // vvvv _CRT_USE_C_TGMATH_H vvvv
+/** @file tgmath.h
+ *  This is a Standard C++ Library header.
+ */
 
-#ifndef _CRT_SILENCE_NONCONFORMING_TGMATH_H
+#include <bits/c++config.h>
 
-#pragma message(_CRT_WARNING_MESSAGE("UCRT4000", \
-    "The Universal CRT implementation of tgmath.h does not conform to the C99 standard. " \
-    "Functionality equivalent to the type-generic functions provided by tgmath.h is available " \
-    "in <ctgmath> when compiling as C++. " \
-    "If compiling in C++17 mode or higher (/std:c++17), this header will automatically include <ctgmath> instead. " \
-    "You can define _CRT_SILENCE_NONCONFORMING_TGMATH_H to acknowledge that you have received this warning."))
+#if __cplusplus >= 201103L
+# include <ctgmath>
+#else
+# if _GLIBCXX_HAVE_TGMATH_H
+#  include_next <tgmath.h>
+# endif
+#endif
 
-#endif // _CRT_SILENCE_NONCONFORMING_TGMATH_H
+#ifndef _GLIBCXX_TGMATH_H
+#define _GLIBCXX_TGMATH_H 1
 
-#include <math.h>
-#include <complex.h>
-
-#endif // (_CRT_HAS_CXX17 == 1) && !defined(_CRT_USE_C_TGMATH_H)
-#endif // _TGMATH
+#endif

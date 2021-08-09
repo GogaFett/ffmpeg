@@ -1,450 +1,636 @@
-// any standard header
+// <any> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2014-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _ANY_
-#define _ANY_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#if !_HAS_CXX17
-#pragma message("The contents of <any> are available only with C++17 or later.")
-#else // ^^^ !_HAS_CXX17 / _HAS_CXX17 vvv
-#include <initializer_list>
-#include <type_traits>
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/any
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_ANY
+#define _GLIBCXX_ANY 1
+
+#pragma GCC system_header
+
+#if __cplusplus >= 201703L
+
 #include <typeinfo>
+#include <new>
 #include <utility>
-#include <xmemory>
+#include <type_traits>
 
-#if !_HAS_STATIC_RTTI
-#error class any requires static RTTI.
-#endif // _HAS_STATIC_RTTI
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+  /**
+   *  @addtogroup utilities
+   *  @{
+   */
 
-_STD_BEGIN
+  /**
+   *  @brief Exception class thrown by a failed @c any_cast
+   *  @ingroup exceptions
+   */
+  class bad_any_cast : public bad_cast
+  {
+  public:
+    virtual const char* what() const noexcept { return "bad any_cast"; }
+  };
 
-// CLASS bad_any_cast
-class bad_any_cast : public bad_cast { // thrown by failed any_cast
-public:
-    _NODISCARD virtual const char* __CLR_OR_THIS_CALL what() const noexcept override {
-        return "Bad any_cast";
-    }
-};
+  [[gnu::noreturn]] inline void __throw_bad_any_cast()
+  {
+#if __cpp_exceptions
+    throw bad_any_cast{};
+#else
+    __builtin_abort();
+#endif
+  }
 
-[[noreturn]] inline void _Throw_bad_any_cast() {
-    _THROW(bad_any_cast{});
-}
+#define __cpp_lib_any 201606L
 
-inline constexpr size_t _Any_trivial_space_size = (_Small_object_num_ptrs - 1) * sizeof(void*);
+  /**
+   *  @brief A type-safe container of any type.
+   *
+   *  An @c any object's state is either empty or it stores a contained object
+   *  of CopyConstructible type.
+   */
+  class any
+  {
+    // Holds either pointer to a heap object or the contained object itself.
+    union _Storage
+    {
+      constexpr _Storage() : _M_ptr{nullptr} {}
 
-template <class _Ty>
-inline constexpr bool _Any_is_trivial = alignof(_Ty) <= alignof(max_align_t)
-                                     && is_trivially_copyable_v<_Ty> && sizeof(_Ty) <= _Any_trivial_space_size;
+      // Prevent trivial copies of this type, buffer might hold a non-POD.
+      _Storage(const _Storage&) = delete;
+      _Storage& operator=(const _Storage&) = delete;
 
-inline constexpr size_t _Any_small_space_size = (_Small_object_num_ptrs - 2) * sizeof(void*);
-
-template <class _Ty>
-inline constexpr bool _Any_is_small = alignof(_Ty) <= alignof(max_align_t)
-                                   && is_nothrow_move_constructible_v<_Ty> && sizeof(_Ty) <= _Any_small_space_size;
-
-enum class _Any_representation : uintptr_t { _Trivial, _Big, _Small };
-
-struct _Any_big_RTTI { // Hand-rolled vtable for types that must be heap allocated in an any
-    using _Destroy_fn = void __CLRCALL_PURE_OR_CDECL(void*) _NOEXCEPT_FNPTR;
-    using _Copy_fn    = void* __CLRCALL_PURE_OR_CDECL(const void*);
-
-    template <class _Ty>
-    static void __CLRCALL_PURE_OR_CDECL _Destroy_impl(void* const _Target) noexcept {
-        ::delete static_cast<_Ty*>(_Target);
-    }
-
-    template <class _Ty>
-    _NODISCARD static void* __CLRCALL_PURE_OR_CDECL _Copy_impl(const void* const _Source) {
-        return ::new _Ty(*static_cast<const _Ty*>(_Source));
-    }
-
-    _Destroy_fn* _Destroy;
-    _Copy_fn* _Copy;
-};
-
-struct _Any_small_RTTI { // Hand-rolled vtable for nontrivial types that can be stored internally in an any
-    using _Destroy_fn = void __CLRCALL_PURE_OR_CDECL(void*) _NOEXCEPT_FNPTR;
-    using _Copy_fn    = void __CLRCALL_PURE_OR_CDECL(void*, const void*);
-    using _Move_fn    = void __CLRCALL_PURE_OR_CDECL(void*, void*) _NOEXCEPT_FNPTR;
-
-    template <class _Ty>
-    static void __CLRCALL_PURE_OR_CDECL _Destroy_impl(void* const _Target) noexcept {
-        _Destroy_in_place(*static_cast<_Ty*>(_Target));
-    }
-
-    template <class _Ty>
-    static void __CLRCALL_PURE_OR_CDECL _Copy_impl(void* const _Target, const void* const _Source) {
-        _Construct_in_place(*static_cast<_Ty*>(_Target), *static_cast<const _Ty*>(_Source));
-    }
-
-    template <class _Ty>
-    static void __CLRCALL_PURE_OR_CDECL _Move_impl(void* const _Target, void* const _Source) noexcept {
-        _Construct_in_place(*static_cast<_Ty*>(_Target), _STD move(*static_cast<_Ty*>(_Source)));
-    }
-
-    _Destroy_fn* _Destroy;
-    _Copy_fn* _Copy;
-    _Move_fn* _Move;
-};
-
-template <class _Ty>
-inline constexpr _Any_big_RTTI _Any_big_RTTI_obj = {
-    &_Any_big_RTTI::_Destroy_impl<_Ty>, &_Any_big_RTTI::_Copy_impl<_Ty>};
-
-template <class _Ty>
-inline constexpr _Any_small_RTTI _Any_small_RTTI_obj = {
-    &_Any_small_RTTI::_Destroy_impl<_Ty>, &_Any_small_RTTI::_Copy_impl<_Ty>, &_Any_small_RTTI::_Move_impl<_Ty>};
-
-// CLASS any
-class any { // storage for any (CopyConstructible) type
-public:
-    // Construction and destruction [any.cons]
-    constexpr any() noexcept {}
-
-    any(const any& _That) {
-        _Storage._TypeData = _That._Storage._TypeData;
-        switch (_Rep()) {
-        case _Any_representation::_Small:
-            _Storage._SmallStorage._RTTI = _That._Storage._SmallStorage._RTTI;
-            _Storage._SmallStorage._RTTI->_Copy(&_Storage._SmallStorage._Data, &_That._Storage._SmallStorage._Data);
-            break;
-        case _Any_representation::_Big:
-            _Storage._BigStorage._RTTI = _That._Storage._BigStorage._RTTI;
-            _Storage._BigStorage._Ptr  = _Storage._BigStorage._RTTI->_Copy(_That._Storage._BigStorage._Ptr);
-            break;
-        case _Any_representation::_Trivial:
-        default:
-            _CSTD memcpy(_Storage._TrivialData, _That._Storage._TrivialData, sizeof(_Storage._TrivialData));
-            break;
-        }
-    }
-
-    any(any&& _That) noexcept {
-        _Move_from(_That);
-    }
-
-    template <class _ValueType, enable_if_t<conjunction_v<negation<is_same<decay_t<_ValueType>, any>>,
-                                                negation<_Is_specialization<decay_t<_ValueType>, in_place_type_t>>,
-                                                is_copy_constructible<decay_t<_ValueType>>>,
-                                    int> = 0>
-    any(_ValueType&& _Value) { // initialize with _Value
-        _Emplace<decay_t<_ValueType>>(_STD forward<_ValueType>(_Value));
-    }
-
-    template <class _ValueType, class... _Types,
-        enable_if_t<
-            conjunction_v<is_constructible<decay_t<_ValueType>, _Types...>, is_copy_constructible<decay_t<_ValueType>>>,
-            int> = 0>
-    explicit any(in_place_type_t<_ValueType>, _Types&&... _Args) {
-        // in-place initialize a value of type decay_t<_ValueType> with _Args...
-        _Emplace<decay_t<_ValueType>>(_STD forward<_Types>(_Args)...);
-    }
-
-    template <class _ValueType, class _Elem, class... _Types,
-        enable_if_t<conjunction_v<is_constructible<decay_t<_ValueType>, initializer_list<_Elem>&, _Types...>,
-                        is_copy_constructible<decay_t<_ValueType>>>,
-            int> = 0>
-    explicit any(in_place_type_t<_ValueType>, initializer_list<_Elem> _Ilist, _Types&&... _Args) {
-        // in-place initialize a value of type decay_t<_ValueType> with _Ilist and _Args...
-        _Emplace<decay_t<_ValueType>>(_Ilist, _STD forward<_Types>(_Args)...);
-    }
-
-    ~any() noexcept {
-        reset();
-    }
-
-    // Assignment [any.assign]
-    any& operator=(const any& _That) {
-        *this = any{_That};
-        return *this;
-    }
-
-    any& operator=(any&& _That) noexcept {
-        reset();
-        _Move_from(_That);
-        return *this;
-    }
-
-    template <class _ValueType, enable_if_t<conjunction_v<negation<is_same<decay_t<_ValueType>, any>>,
-                                                is_copy_constructible<decay_t<_ValueType>>>,
-                                    int> = 0>
-    any& operator=(_ValueType&& _Value) {
-        // replace contained value with an object of type decay_t<_ValueType> initialized from _Value
-        *this = any{_STD forward<_ValueType>(_Value)};
-        return *this;
-    }
-
-    // Modifiers [any.modifiers]
-    template <class _ValueType, class... _Types,
-        enable_if_t<
-            conjunction_v<is_constructible<decay_t<_ValueType>, _Types...>, is_copy_constructible<decay_t<_ValueType>>>,
-            int> = 0>
-    decay_t<_ValueType>& emplace(_Types&&... _Args) {
-        // replace contained value with an object of type decay_t<_ValueType> initialized from _Args...
-        reset();
-        return _Emplace<decay_t<_ValueType>>(_STD forward<_Types>(_Args)...);
-    }
-    template <class _ValueType, class _Elem, class... _Types,
-        enable_if_t<conjunction_v<is_constructible<decay_t<_ValueType>, initializer_list<_Elem>&, _Types...>,
-                        is_copy_constructible<decay_t<_ValueType>>>,
-            int> = 0>
-    decay_t<_ValueType>& emplace(initializer_list<_Elem> _Ilist, _Types&&... _Args) {
-        // replace contained value with an object of type decay_t<_ValueType> initialized from _Ilist and _Args...
-        reset();
-        return _Emplace<decay_t<_ValueType>>(_Ilist, _STD forward<_Types>(_Args)...);
-    }
-
-    void reset() noexcept { // transition to the empty state
-        switch (_Rep()) {
-        case _Any_representation::_Small:
-            _Storage._SmallStorage._RTTI->_Destroy(&_Storage._SmallStorage._Data);
-            break;
-        case _Any_representation::_Big:
-            _Storage._BigStorage._RTTI->_Destroy(_Storage._BigStorage._Ptr);
-            break;
-        case _Any_representation::_Trivial:
-        default:
-            break;
-        }
-        _Storage._TypeData = 0;
-    }
-
-    void swap(any& _That) noexcept {
-        _That = _STD exchange(*this, _STD move(_That));
-    }
-
-    // Observers [any.observers]
-    _NODISCARD bool has_value() const noexcept {
-        return _Storage._TypeData != 0;
-    }
-
-    _NODISCARD const type_info& type() const noexcept {
-        // if *this contains a value of type T, return typeid(T); otherwise typeid(void)
-        const type_info* const _Info = _TypeInfo();
-        if (_Info) {
-            return *_Info;
-        }
-
-        return typeid(void);
-    }
-
-    template <class _Decayed>
-    _NODISCARD const _Decayed* _Cast() const noexcept {
-        // if *this contains a value of type _Decayed, return a pointer to it
-        const type_info* const _Info = _TypeInfo();
-        if (!_Info || *_Info != typeid(_Decayed)) {
-            return nullptr;
-        }
-
-        if constexpr (_Any_is_trivial<_Decayed>) {
-            // get a pointer to the contained _Trivial value of type _Decayed
-            return reinterpret_cast<const _Decayed*>(&_Storage._TrivialData);
-        } else if constexpr (_Any_is_small<_Decayed>) {
-            // get a pointer to the contained _Small value of type _Decayed
-            return reinterpret_cast<const _Decayed*>(&_Storage._SmallStorage._Data);
-        } else {
-            // get a pointer to the contained _Big value of type _Decayed
-            return static_cast<const _Decayed*>(_Storage._BigStorage._Ptr);
-        }
-    }
-
-    template <class _Decayed>
-    _NODISCARD _Decayed* _Cast() noexcept { // if *this contains a value of type _Decayed, return a pointer to it
-        return const_cast<_Decayed*>(static_cast<const any*>(this)->_Cast<_Decayed>());
-    }
-
-private:
-    static constexpr uintptr_t _Rep_mask = 3;
-
-    _NODISCARD _Any_representation _Rep() const noexcept { // extract the representation format from _TypeData
-        return static_cast<_Any_representation>(_Storage._TypeData & _Rep_mask);
-    }
-    _NODISCARD const type_info* _TypeInfo() const noexcept { // extract the type_info from _TypeData
-        return reinterpret_cast<const type_info*>(_Storage._TypeData & ~_Rep_mask);
-    }
-
-    void _Move_from(any& _That) noexcept {
-        _Storage._TypeData = _That._Storage._TypeData;
-        switch (_Rep()) {
-        case _Any_representation::_Small:
-            _Storage._SmallStorage._RTTI = _That._Storage._SmallStorage._RTTI;
-            _Storage._SmallStorage._RTTI->_Move(&_Storage._SmallStorage._Data, &_That._Storage._SmallStorage._Data);
-            break;
-        case _Any_representation::_Big:
-            _Storage._BigStorage._RTTI = _That._Storage._BigStorage._RTTI;
-            _Storage._BigStorage._Ptr  = _That._Storage._BigStorage._Ptr;
-            _That._Storage._TypeData   = 0;
-            break;
-        case _Any_representation::_Trivial:
-        default:
-            _CSTD memcpy(_Storage._TrivialData, _That._Storage._TrivialData, sizeof(_Storage._TrivialData));
-            break;
-        }
-    }
-
-    template <class _Decayed, class... _Types>
-    _Decayed& _Emplace(_Types&&... _Args) { // emplace construct _Decayed
-        if constexpr (_Any_is_trivial<_Decayed>) {
-            // using the _Trivial representation
-            auto& _Obj = reinterpret_cast<_Decayed&>(_Storage._TrivialData);
-            _Construct_in_place(_Obj, _STD forward<_Types>(_Args)...);
-            _Storage._TypeData =
-                reinterpret_cast<uintptr_t>(&typeid(_Decayed)) | static_cast<uintptr_t>(_Any_representation::_Trivial);
-            return _Obj;
-        } else if constexpr (_Any_is_small<_Decayed>) {
-            // using the _Small representation
-            auto& _Obj = reinterpret_cast<_Decayed&>(_Storage._SmallStorage._Data);
-            _Construct_in_place(_Obj, _STD forward<_Types>(_Args)...);
-            _Storage._SmallStorage._RTTI = &_Any_small_RTTI_obj<_Decayed>;
-            _Storage._TypeData =
-                reinterpret_cast<uintptr_t>(&typeid(_Decayed)) | static_cast<uintptr_t>(_Any_representation::_Small);
-            return _Obj;
-        } else {
-            // using the _Big representation
-            _Decayed* const _Ptr       = ::new _Decayed(_STD forward<_Types>(_Args)...);
-            _Storage._BigStorage._Ptr  = _Ptr;
-            _Storage._BigStorage._RTTI = &_Any_big_RTTI_obj<_Decayed>;
-            _Storage._TypeData =
-                reinterpret_cast<uintptr_t>(&typeid(_Decayed)) | static_cast<uintptr_t>(_Any_representation::_Big);
-            return *_Ptr;
-        }
-    }
-
-    struct _Small_storage_t {
-        unsigned char _Data[_Any_small_space_size];
-        const _Any_small_RTTI* _RTTI;
+      void* _M_ptr;
+      aligned_storage<sizeof(_M_ptr), alignof(void*)>::type _M_buffer;
     };
-    static_assert(sizeof(_Small_storage_t) == _Any_trivial_space_size);
 
-    struct _Big_storage_t {
-        // Pad so that _Ptr and _RTTI might share _TypeData's cache line
-        unsigned char _Padding[_Any_small_space_size - sizeof(void*)];
-        void* _Ptr;
-        const _Any_big_RTTI* _RTTI;
+    template<typename _Tp, typename _Safe = is_nothrow_move_constructible<_Tp>,
+	     bool _Fits = (sizeof(_Tp) <= sizeof(_Storage))
+			  && (alignof(_Tp) <= alignof(_Storage))>
+      using _Internal = std::integral_constant<bool, _Safe::value && _Fits>;
+
+    template<typename _Tp>
+      struct _Manager_internal; // uses small-object optimization
+
+    template<typename _Tp>
+      struct _Manager_external; // creates contained object on the heap
+
+    template<typename _Tp>
+      using _Manager = conditional_t<_Internal<_Tp>::value,
+				     _Manager_internal<_Tp>,
+				     _Manager_external<_Tp>>;
+
+    template<typename _Tp, typename _VTp = decay_t<_Tp>>
+      using _Decay_if_not_any = enable_if_t<!is_same_v<_VTp, any>, _VTp>;
+
+    /// Emplace with an object created from @p __args as the contained object.
+    template <typename _Tp, typename... _Args,
+	      typename _Mgr = _Manager<_Tp>>
+      void __do_emplace(_Args&&... __args)
+      {
+	reset();
+        _Mgr::_S_create(_M_storage, std::forward<_Args>(__args)...);
+	_M_manager = &_Mgr::_S_manage;
+      }
+
+    /// Emplace with an object created from @p __il and @p __args as
+    /// the contained object.
+    template <typename _Tp, typename _Up, typename... _Args,
+	      typename _Mgr = _Manager<_Tp>>
+      void __do_emplace(initializer_list<_Up> __il, _Args&&... __args)
+      {
+	reset();
+	_Mgr::_S_create(_M_storage, __il, std::forward<_Args>(__args)...);
+	_M_manager = &_Mgr::_S_manage;
+      }
+
+    template <typename _Res, typename _Tp, typename... _Args>
+      using __any_constructible
+	= enable_if<__and_<is_copy_constructible<_Tp>,
+			   is_constructible<_Tp, _Args...>>::value,
+		    _Res>;
+
+    template <typename _Tp, typename... _Args>
+      using __any_constructible_t
+	= typename __any_constructible<bool, _Tp, _Args...>::type;
+
+    template<typename _VTp, typename... _Args>
+      using __emplace_t
+	= typename __any_constructible<_VTp&, _VTp, _Args...>::type;
+
+  public:
+    // construct/destruct
+
+    /// Default constructor, creates an empty object.
+    constexpr any() noexcept : _M_manager(nullptr) { }
+
+    /// Copy constructor, copies the state of @p __other
+    any(const any& __other)
+    {
+      if (!__other.has_value())
+	_M_manager = nullptr;
+      else
+	{
+	  _Arg __arg;
+	  __arg._M_any = this;
+	  __other._M_manager(_Op_clone, &__other, &__arg);
+	}
+    }
+
+    /**
+     * @brief Move constructor, transfer the state from @p __other
+     *
+     * @post @c !__other.has_value() (this postcondition is a GNU extension)
+     */
+    any(any&& __other) noexcept
+    {
+      if (!__other.has_value())
+	_M_manager = nullptr;
+      else
+	{
+	  _Arg __arg;
+	  __arg._M_any = this;
+	  __other._M_manager(_Op_xfer, &__other, &__arg);
+	}
+    }
+
+    /// Construct with a copy of @p __value as the contained object.
+    template <typename _Tp, typename _VTp = _Decay_if_not_any<_Tp>,
+	      typename _Mgr = _Manager<_VTp>,
+	      enable_if_t<is_copy_constructible<_VTp>::value
+			  && !__is_in_place_type<_VTp>::value, bool> = true>
+      any(_Tp&& __value)
+      : _M_manager(&_Mgr::_S_manage)
+      {
+	_Mgr::_S_create(_M_storage, std::forward<_Tp>(__value));
+      }
+
+    /// Construct with an object created from @p __args as the contained object.
+    template <typename _Tp, typename... _Args, typename _VTp = decay_t<_Tp>,
+	      typename _Mgr = _Manager<_VTp>,
+	      __any_constructible_t<_VTp, _Args&&...> = false>
+      explicit
+      any(in_place_type_t<_Tp>, _Args&&... __args)
+      : _M_manager(&_Mgr::_S_manage)
+      {
+	_Mgr::_S_create(_M_storage, std::forward<_Args>(__args)...);
+      }
+
+    /// Construct with an object created from @p __il and @p __args as
+    /// the contained object.
+    template <typename _Tp, typename _Up, typename... _Args,
+	      typename _VTp = decay_t<_Tp>, typename _Mgr = _Manager<_VTp>,
+	      __any_constructible_t<_VTp, initializer_list<_Up>&,
+				    _Args&&...> = false>
+      explicit
+      any(in_place_type_t<_Tp>, initializer_list<_Up> __il, _Args&&... __args)
+      : _M_manager(&_Mgr::_S_manage)
+      {
+	_Mgr::_S_create(_M_storage, __il, std::forward<_Args>(__args)...);
+      }
+
+    /// Destructor, calls @c reset()
+    ~any() { reset(); }
+
+    // assignments
+
+    /// Copy the state of another object.
+    any&
+    operator=(const any& __rhs)
+    {
+      *this = any(__rhs);
+      return *this;
+    }
+
+    /**
+     * @brief Move assignment operator
+     *
+     * @post @c !__rhs.has_value() (not guaranteed for other implementations)
+     */
+    any&
+    operator=(any&& __rhs) noexcept
+    {
+      if (!__rhs.has_value())
+	reset();
+      else if (this != &__rhs)
+	{
+	  reset();
+	  _Arg __arg;
+	  __arg._M_any = this;
+	  __rhs._M_manager(_Op_xfer, &__rhs, &__arg);
+	}
+      return *this;
+    }
+
+    /// Store a copy of @p __rhs as the contained object.
+    template<typename _Tp>
+      enable_if_t<is_copy_constructible<_Decay_if_not_any<_Tp>>::value, any&>
+      operator=(_Tp&& __rhs)
+      {
+	*this = any(std::forward<_Tp>(__rhs));
+	return *this;
+      }
+
+    /// Emplace with an object created from @p __args as the contained object.
+    template <typename _Tp, typename... _Args>
+      __emplace_t<decay_t<_Tp>, _Args...>
+      emplace(_Args&&... __args)
+      {
+	using _VTp = decay_t<_Tp>;
+	__do_emplace<_VTp>(std::forward<_Args>(__args)...);
+	any::_Arg __arg;
+	this->_M_manager(any::_Op_access, this, &__arg);
+	return *static_cast<_VTp*>(__arg._M_obj);
+      }
+
+    /// Emplace with an object created from @p __il and @p __args as
+    /// the contained object.
+    template <typename _Tp, typename _Up, typename... _Args>
+      __emplace_t<decay_t<_Tp>, initializer_list<_Up>&, _Args&&...>
+      emplace(initializer_list<_Up> __il, _Args&&... __args)
+      {
+	using _VTp = decay_t<_Tp>;
+	__do_emplace<_VTp, _Up>(__il, std::forward<_Args>(__args)...);
+	any::_Arg __arg;
+	this->_M_manager(any::_Op_access, this, &__arg);
+	return *static_cast<_VTp*>(__arg._M_obj);
+      }
+
+    // modifiers
+
+    /// If not empty, destroy the contained object.
+    void reset() noexcept
+    {
+      if (has_value())
+      {
+	_M_manager(_Op_destroy, this, nullptr);
+	_M_manager = nullptr;
+      }
+    }
+
+    /// Exchange state with another object.
+    void swap(any& __rhs) noexcept
+    {
+      if (!has_value() && !__rhs.has_value())
+	return;
+
+      if (has_value() && __rhs.has_value())
+	{
+	  if (this == &__rhs)
+	    return;
+
+	  any __tmp;
+	  _Arg __arg;
+	  __arg._M_any = &__tmp;
+	  __rhs._M_manager(_Op_xfer, &__rhs, &__arg);
+	  __arg._M_any = &__rhs;
+	  _M_manager(_Op_xfer, this, &__arg);
+	  __arg._M_any = this;
+	  __tmp._M_manager(_Op_xfer, &__tmp, &__arg);
+	}
+      else
+	{
+	  any* __empty = !has_value() ? this : &__rhs;
+	  any* __full = !has_value() ? &__rhs : this;
+	  _Arg __arg;
+	  __arg._M_any = __empty;
+	  __full->_M_manager(_Op_xfer, __full, &__arg);
+	}
+    }
+
+    // observers
+
+    /// Reports whether there is a contained object or not.
+    bool has_value() const noexcept { return _M_manager != nullptr; }
+
+#if __cpp_rtti
+    /// The @c typeid of the contained object, or @c typeid(void) if empty.
+    const type_info& type() const noexcept
+    {
+      if (!has_value())
+	return typeid(void);
+      _Arg __arg;
+      _M_manager(_Op_get_type_info, this, &__arg);
+      return *__arg._M_typeinfo;
+    }
+#endif
+
+    template<typename _Tp>
+      static constexpr bool __is_valid_cast()
+      { return __or_<is_reference<_Tp>, is_copy_constructible<_Tp>>::value; }
+
+  private:
+    enum _Op {
+	_Op_access, _Op_get_type_info, _Op_clone, _Op_destroy, _Op_xfer
     };
-    static_assert(sizeof(_Big_storage_t) == _Any_trivial_space_size);
 
-    struct _Storage_t {
-        union {
-            unsigned char _TrivialData[_Any_trivial_space_size];
-            _Small_storage_t _SmallStorage;
-            _Big_storage_t _BigStorage;
-        };
-        uintptr_t _TypeData;
+    union _Arg
+    {
+	void* _M_obj;
+	const std::type_info* _M_typeinfo;
+	any* _M_any;
     };
-    static_assert(sizeof(_Storage_t) == _Any_trivial_space_size + sizeof(void*));
-    static_assert(is_standard_layout_v<_Storage_t>);
 
-    union {
-        _Storage_t _Storage{};
-        max_align_t _Dummy;
-    };
-};
+    void (*_M_manager)(_Op, const any*, _Arg*);
+    _Storage _M_storage;
 
-// Non-member functions [any.nonmembers]
-inline void swap(any& _Left, any& _Right) noexcept {
-    _Left.swap(_Right);
-}
+    template<typename _Tp>
+      friend void* __any_caster(const any* __any);
 
-template <class _ValueType, class... _Types>
-_NODISCARD any make_any(_Types&&... _Args) { // construct an any containing a _ValueType initialized with _Args...
-    return any{in_place_type<_ValueType>, _STD forward<_Types>(_Args)...};
-}
-template <class _ValueType, class _Elem, class... _Types>
-_NODISCARD any make_any(initializer_list<_Elem> _Ilist, _Types&&... _Args) {
-    // construct an any containing a _ValueType initialized with _Ilist and _Args...
-    return any{in_place_type<_ValueType>, _Ilist, _STD forward<_Types>(_Args)...};
-}
+    // Manage in-place contained object.
+    template<typename _Tp>
+      struct _Manager_internal
+      {
+	static void
+	_S_manage(_Op __which, const any* __anyp, _Arg* __arg);
 
-template <class _ValueType>
-_NODISCARD const _ValueType* any_cast(const any* const _Any) noexcept {
-    // retrieve a pointer to the _ValueType contained in _Any, or null
-    static_assert(!is_void_v<_ValueType>, "std::any cannot contain void.");
+	template<typename _Up>
+	  static void
+	  _S_create(_Storage& __storage, _Up&& __value)
+	  {
+	    void* __addr = &__storage._M_buffer;
+	    ::new (__addr) _Tp(std::forward<_Up>(__value));
+	  }
 
-    if constexpr (is_function_v<_ValueType> || is_array_v<_ValueType>) {
-        return nullptr;
-    } else {
-        if (!_Any) {
-            return nullptr;
-        }
+	template<typename... _Args>
+	  static void
+	  _S_create(_Storage& __storage, _Args&&... __args)
+	  {
+	    void* __addr = &__storage._M_buffer;
+	    ::new (__addr) _Tp(std::forward<_Args>(__args)...);
+	  }
+      };
 
-        return _Any->_Cast<_Remove_cvref_t<_ValueType>>();
-    }
-}
-template <class _ValueType>
-_NODISCARD _ValueType* any_cast(any* const _Any) noexcept {
-    // retrieve a pointer to the _ValueType contained in _Any, or null
-    static_assert(!is_void_v<_ValueType>, "std::any cannot contain void.");
+    // Manage external contained object.
+    template<typename _Tp>
+      struct _Manager_external
+      {
+	static void
+	_S_manage(_Op __which, const any* __anyp, _Arg* __arg);
 
-    if constexpr (is_function_v<_ValueType> || is_array_v<_ValueType>) {
-        return nullptr;
-    } else {
-        if (!_Any) {
-            return nullptr;
-        }
+	template<typename _Up>
+	  static void
+	  _S_create(_Storage& __storage, _Up&& __value)
+	  {
+	    __storage._M_ptr = new _Tp(std::forward<_Up>(__value));
+	  }
+	template<typename... _Args>
+	  static void
+	  _S_create(_Storage& __storage, _Args&&... __args)
+	  {
+	    __storage._M_ptr = new _Tp(std::forward<_Args>(__args)...);
+	  }
+      };
+  };
 
-        return _Any->_Cast<_Remove_cvref_t<_ValueType>>();
-    }
-}
+  /// Exchange the states of two @c any objects.
+  inline void swap(any& __x, any& __y) noexcept { __x.swap(__y); }
 
-template <class _Ty>
-_NODISCARD remove_cv_t<_Ty> any_cast(const any& _Any) {
-    static_assert(is_constructible_v<remove_cv_t<_Ty>, const _Remove_cvref_t<_Ty>&>,
-        "any_cast<T>(const any&) requires remove_cv_t<T> to be constructible from "
-        "const remove_cv_t<remove_reference_t<T>>&");
-
-    const auto _Ptr = _STD any_cast<_Remove_cvref_t<_Ty>>(&_Any);
-    if (!_Ptr) {
-        _Throw_bad_any_cast();
+  /// Create an any holding a @c _Tp constructed from @c __args.
+  template <typename _Tp, typename... _Args>
+    any make_any(_Args&&... __args)
+    {
+      return any(in_place_type<_Tp>, std::forward<_Args>(__args)...);
     }
 
-    return static_cast<remove_cv_t<_Ty>>(*_Ptr);
-}
-template <class _Ty>
-_NODISCARD remove_cv_t<_Ty> any_cast(any& _Any) {
-    static_assert(is_constructible_v<remove_cv_t<_Ty>, _Remove_cvref_t<_Ty>&>,
-        "any_cast<T>(any&) requires remove_cv_t<T> to be constructible from remove_cv_t<remove_reference_t<T>>&");
-
-    const auto _Ptr = _STD any_cast<_Remove_cvref_t<_Ty>>(&_Any);
-    if (!_Ptr) {
-        _Throw_bad_any_cast();
+  /// Create an any holding a @c _Tp constructed from @c __il and @c __args.
+  template <typename _Tp, typename _Up, typename... _Args>
+    any make_any(initializer_list<_Up> __il, _Args&&... __args)
+    {
+      return any(in_place_type<_Tp>, __il, std::forward<_Args>(__args)...);
     }
 
-    return static_cast<remove_cv_t<_Ty>>(*_Ptr);
-}
-template <class _Ty>
-_NODISCARD remove_cv_t<_Ty> any_cast(any&& _Any) {
-    static_assert(is_constructible_v<remove_cv_t<_Ty>, _Remove_cvref_t<_Ty>>,
-        "any_cast<T>(any&&) requires remove_cv_t<T> to be constructible from remove_cv_t<remove_reference_t<T>>");
-
-    const auto _Ptr = _STD any_cast<_Remove_cvref_t<_Ty>>(&_Any);
-    if (!_Ptr) {
-        _Throw_bad_any_cast();
+  /**
+   * @brief Access the contained object.
+   *
+   * @tparam  _ValueType  A const-reference or CopyConstructible type.
+   * @param   __any       The object to access.
+   * @return  The contained object.
+   * @throw   bad_any_cast If <code>
+   *          __any.type() != typeid(remove_reference_t<_ValueType>)
+   *          </code>
+   */
+  template<typename _ValueType>
+    inline _ValueType any_cast(const any& __any)
+    {
+      using _Up = __remove_cvref_t<_ValueType>;
+      static_assert(any::__is_valid_cast<_ValueType>(),
+	  "Template argument must be a reference or CopyConstructible type");
+      static_assert(is_constructible_v<_ValueType, const _Up&>,
+	  "Template argument must be constructible from a const value.");
+      auto __p = any_cast<_Up>(&__any);
+      if (__p)
+	return static_cast<_ValueType>(*__p);
+      __throw_bad_any_cast();
     }
 
-    return static_cast<remove_cv_t<_Ty>>(_STD move(*_Ptr));
-}
+  /**
+   * @brief Access the contained object.
+   *
+   * @tparam  _ValueType  A reference or CopyConstructible type.
+   * @param   __any       The object to access.
+   * @return  The contained object.
+   * @throw   bad_any_cast If <code>
+   *          __any.type() != typeid(remove_reference_t<_ValueType>)
+   *          </code>
+   *
+   * @{
+   */
+  template<typename _ValueType>
+    inline _ValueType any_cast(any& __any)
+    {
+      using _Up = __remove_cvref_t<_ValueType>;
+      static_assert(any::__is_valid_cast<_ValueType>(),
+	  "Template argument must be a reference or CopyConstructible type");
+      static_assert(is_constructible_v<_ValueType, _Up&>,
+	  "Template argument must be constructible from an lvalue.");
+      auto __p = any_cast<_Up>(&__any);
+      if (__p)
+	return static_cast<_ValueType>(*__p);
+      __throw_bad_any_cast();
+    }
 
-_STD_END
+  template<typename _ValueType>
+    inline _ValueType any_cast(any&& __any)
+    {
+      using _Up = __remove_cvref_t<_ValueType>;
+      static_assert(any::__is_valid_cast<_ValueType>(),
+	  "Template argument must be a reference or CopyConstructible type");
+      static_assert(is_constructible_v<_ValueType, _Up>,
+	  "Template argument must be constructible from an rvalue.");
+      auto __p = any_cast<_Up>(&__any);
+      if (__p)
+	return static_cast<_ValueType>(std::move(*__p));
+      __throw_bad_any_cast();
+    }
+  /// @}
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _HAS_CXX17
+  /// @cond undocumented
+  template<typename _Tp>
+    void* __any_caster(const any* __any)
+    {
+      // any_cast<T> returns non-null if __any->type() == typeid(T) and
+      // typeid(T) ignores cv-qualifiers so remove them:
+      using _Up = remove_cv_t<_Tp>;
+      // The contained value has a decayed type, so if decay_t<U> is not U,
+      // then it's not possible to have a contained value of type U:
+      if constexpr (!is_same_v<decay_t<_Up>, _Up>)
+	return nullptr;
+      // Only copy constructible types can be used for contained values:
+      else if constexpr (!is_copy_constructible_v<_Up>)
+	return nullptr;
+      // First try comparing function addresses, which works without RTTI
+      else if (__any->_M_manager == &any::_Manager<_Up>::_S_manage
+#if __cpp_rtti
+	  || __any->type() == typeid(_Tp)
+#endif
+	  )
+	{
+	  any::_Arg __arg;
+	  __any->_M_manager(any::_Op_access, __any, &__arg);
+	  return __arg._M_obj;
+	}
+      return nullptr;
+    }
+  /// @endcond
 
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _ANY_
+  /**
+   * @brief Access the contained object.
+   *
+   * @tparam  _ValueType  The type of the contained object.
+   * @param   __any       A pointer to the object to access.
+   * @return  The address of the contained object if <code>
+   *          __any != nullptr && __any.type() == typeid(_ValueType)
+   *          </code>, otherwise a null pointer.
+   *
+   * @{
+   */
+  template<typename _ValueType>
+    inline const _ValueType* any_cast(const any* __any) noexcept
+    {
+      if constexpr (is_object_v<_ValueType>)
+	if (__any)
+	  return static_cast<_ValueType*>(__any_caster<_ValueType>(__any));
+      return nullptr;
+    }
+
+  template<typename _ValueType>
+    inline _ValueType* any_cast(any* __any) noexcept
+    {
+      if constexpr (is_object_v<_ValueType>)
+	if (__any)
+	  return static_cast<_ValueType*>(__any_caster<_ValueType>(__any));
+      return nullptr;
+    }
+  /// @}
+
+  template<typename _Tp>
+    void
+    any::_Manager_internal<_Tp>::
+    _S_manage(_Op __which, const any* __any, _Arg* __arg)
+    {
+      // The contained object is in _M_storage._M_buffer
+      auto __ptr = reinterpret_cast<const _Tp*>(&__any->_M_storage._M_buffer);
+      switch (__which)
+      {
+      case _Op_access:
+	__arg->_M_obj = const_cast<_Tp*>(__ptr);
+	break;
+      case _Op_get_type_info:
+#if __cpp_rtti
+	__arg->_M_typeinfo = &typeid(_Tp);
+#endif
+	break;
+      case _Op_clone:
+	::new(&__arg->_M_any->_M_storage._M_buffer) _Tp(*__ptr);
+	__arg->_M_any->_M_manager = __any->_M_manager;
+	break;
+      case _Op_destroy:
+	__ptr->~_Tp();
+	break;
+      case _Op_xfer:
+	::new(&__arg->_M_any->_M_storage._M_buffer) _Tp
+	  (std::move(*const_cast<_Tp*>(__ptr)));
+	__ptr->~_Tp();
+	__arg->_M_any->_M_manager = __any->_M_manager;
+	const_cast<any*>(__any)->_M_manager = nullptr;
+	break;
+      }
+    }
+
+  template<typename _Tp>
+    void
+    any::_Manager_external<_Tp>::
+    _S_manage(_Op __which, const any* __any, _Arg* __arg)
+    {
+      // The contained object is *_M_storage._M_ptr
+      auto __ptr = static_cast<const _Tp*>(__any->_M_storage._M_ptr);
+      switch (__which)
+      {
+      case _Op_access:
+	__arg->_M_obj = const_cast<_Tp*>(__ptr);
+	break;
+      case _Op_get_type_info:
+#if __cpp_rtti
+	__arg->_M_typeinfo = &typeid(_Tp);
+#endif
+	break;
+      case _Op_clone:
+	__arg->_M_any->_M_storage._M_ptr = new _Tp(*__ptr);
+	__arg->_M_any->_M_manager = __any->_M_manager;
+	break;
+      case _Op_destroy:
+	delete __ptr;
+	break;
+      case _Op_xfer:
+	__arg->_M_any->_M_storage._M_ptr = __any->_M_storage._M_ptr;
+	__arg->_M_any->_M_manager = __any->_M_manager;
+	const_cast<any*>(__any)->_M_manager = nullptr;
+	break;
+      }
+    }
+
+  /// @}
+
+  namespace __detail::__variant
+  {
+    template<typename> struct _Never_valueless_alt; // see <variant>
+
+    // Provide the strong exception-safety guarantee when emplacing an
+    // any into a variant.
+    template<>
+      struct _Never_valueless_alt<std::any>
+      : std::true_type
+      { };
+  }  // namespace __detail::__variant
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
+
+#endif // C++17
+#endif // _GLIBCXX_ANY

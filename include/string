@@ -1,598 +1,147 @@
-// string standard header
+// Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 1997-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _STRING_
-#define _STRING_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
-#include <xstring>
-// The <cctype> include below is to workaround many projects that assumed
-// <string> includes it. We workaround it instead of fixing all the upstream
-// projects because <cctype> is inexpensive. See VSO-663136.
-#include <cctype>
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
 
-_STD_BEGIN
-// FUNCTION TEMPLATE getline
-template <class _Elem, class _Traits, class _Alloc>
-basic_istream<_Elem, _Traits>& getline(basic_istream<_Elem, _Traits>&& _Istr,
-    basic_string<_Elem, _Traits, _Alloc>& _Str,
-    const _Elem _Delim) { // get characters into string, discard delimiter
-    using _Myis = basic_istream<_Elem, _Traits>;
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
 
-    typename _Myis::iostate _State = _Myis::goodbit;
-    bool _Changed                  = false;
-    const typename _Myis::sentry _Ok(_Istr, true);
+/** @file include/string
+ *  This is a Standard C++ Library header.
+ */
 
-    if (_Ok) { // state okay, extract characters
-        _TRY_IO_BEGIN
-        _Str.erase();
-        const typename _Traits::int_type _Metadelim = _Traits::to_int_type(_Delim);
-        typename _Traits::int_type _Meta            = _Istr.rdbuf()->sgetc();
+//
+// ISO C++ 14882: 21  Strings library
+//
 
-        for (;; _Meta = _Istr.rdbuf()->snextc()) {
-            if (_Traits::eq_int_type(_Traits::eof(), _Meta)) { // end of file, quit
-                _State |= _Myis::eofbit;
-                break;
-            } else if (_Traits::eq_int_type(_Meta, _Metadelim)) { // got a delimiter, discard it and quit
-                _Changed = true;
-                _Istr.rdbuf()->sbumpc();
-                break;
-            } else if (_Str.max_size() <= _Str.size()) { // string too large, quit
-                _State |= _Myis::failbit;
-                break;
-            } else { // got a character, add it to string
-                _Str += _Traits::to_char_type(_Meta);
-                _Changed = true;
-            }
-        }
-        _CATCH_IO_(_Myis, _Istr)
+#ifndef _GLIBCXX_STRING
+#define _GLIBCXX_STRING	1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <bits/stringfwd.h>
+#include <bits/char_traits.h>  // NB: In turn includes stl_algobase.h
+#include <bits/allocator.h>
+#include <bits/cpp_type_traits.h>
+#include <bits/localefwd.h>    // For operators >>, <<, and getline.
+#include <bits/ostream_insert.h>
+#include <bits/stl_iterator_base_types.h>
+#include <bits/stl_iterator_base_funcs.h>
+#include <bits/stl_iterator.h>
+#include <bits/stl_function.h> // For less
+#include <ext/numeric_traits.h>
+#include <bits/stl_algobase.h>
+#if __cplusplus > 201703L
+#  include <bits/stl_algo.h> // For remove and remove_if
+#endif // C++20
+#include <bits/range_access.h>
+#include <bits/basic_string.h>
+#include <bits/basic_string.tcc>
+
+#if __cplusplus >= 201703L && _GLIBCXX_USE_CXX11_ABI
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+  namespace pmr {
+    template<typename _Tp> class polymorphic_allocator;
+    template<typename _CharT, typename _Traits = char_traits<_CharT>>
+      using basic_string = std::basic_string<_CharT, _Traits,
+					     polymorphic_allocator<_CharT>>;
+    using string    = basic_string<char>;
+#ifdef _GLIBCXX_USE_CHAR8_T
+    using u8string  = basic_string<char8_t>;
+#endif
+    using u16string = basic_string<char16_t>;
+    using u32string = basic_string<char32_t>;
+#ifdef _GLIBCXX_USE_WCHAR_T
+    using wstring   = basic_string<wchar_t>;
+#endif
+  } // namespace pmr
+
+  template<typename _Str>
+    struct __hash_string_base
+    : public __hash_base<size_t, _Str>
+    {
+      size_t
+      operator()(const _Str& __s) const noexcept
+      { return hash<basic_string_view<typename _Str::value_type>>{}(__s); }
+    };
+
+  template<>
+    struct hash<pmr::string>
+    : public __hash_string_base<pmr::string>
+    { };
+#ifdef _GLIBCXX_USE_CHAR8_T
+  template<>
+    struct hash<pmr::u8string>
+    : public __hash_string_base<pmr::u8string>
+    { };
+#endif
+  template<>
+    struct hash<pmr::u16string>
+    : public __hash_string_base<pmr::u16string>
+    { };
+  template<>
+    struct hash<pmr::u32string>
+    : public __hash_string_base<pmr::u32string>
+    { };
+#ifdef _GLIBCXX_USE_WCHAR_T
+  template<>
+    struct hash<pmr::wstring>
+    : public __hash_string_base<pmr::wstring>
+    { };
+#endif
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
+#endif // C++17
+
+#if __cplusplus > 201703L
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+#define __cpp_lib_erase_if 202002L
+
+  template<typename _CharT, typename _Traits, typename _Alloc,
+	   typename _Predicate>
+    inline typename basic_string<_CharT, _Traits, _Alloc>::size_type
+    erase_if(basic_string<_CharT, _Traits, _Alloc>& __cont, _Predicate __pred)
+    {
+      const auto __osz = __cont.size();
+      __cont.erase(std::remove_if(__cont.begin(), __cont.end(), __pred),
+		   __cont.end());
+      return __osz - __cont.size();
     }
 
-    if (!_Changed) {
-        _State |= _Myis::failbit;
+  template<typename _CharT, typename _Traits, typename _Alloc, typename _Up>
+    inline typename basic_string<_CharT, _Traits, _Alloc>::size_type
+    erase(basic_string<_CharT, _Traits, _Alloc>& __cont, const _Up& __value)
+    {
+      const auto __osz = __cont.size();
+      __cont.erase(std::remove(__cont.begin(), __cont.end(), __value),
+		   __cont.end());
+      return __osz - __cont.size();
     }
-
-    _Istr.setstate(_State);
-    return _Istr;
-}
-
-template <class _Elem, class _Traits, class _Alloc>
-basic_istream<_Elem, _Traits>& getline(basic_istream<_Elem, _Traits>&& _Istr,
-    basic_string<_Elem, _Traits, _Alloc>& _Str) { // get characters into string, discard newline
-    return getline(_Istr, _Str, _Istr.widen('\n'));
-}
-
-template <class _Elem, class _Traits, class _Alloc>
-basic_istream<_Elem, _Traits>& getline(basic_istream<_Elem, _Traits>& _Istr, basic_string<_Elem, _Traits, _Alloc>& _Str,
-    const _Elem _Delim) { // get characters into string, discard delimiter
-    return getline(_STD move(_Istr), _Str, _Delim);
-}
-
-template <class _Elem, class _Traits, class _Alloc>
-basic_istream<_Elem, _Traits>& getline(basic_istream<_Elem, _Traits>& _Istr,
-    basic_string<_Elem, _Traits, _Alloc>& _Str) { // get characters into string, discard newline
-    return getline(_STD move(_Istr), _Str, _Istr.widen('\n'));
-}
-
-// sto* NARROW CONVERSIONS
-inline int stoi(const string& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert string to int
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref      = 0;
-    const long _Ans = _CSTD strtol(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoi argument");
-    }
-
-    if (_Errno_ref == ERANGE || _Ans < INT_MIN || INT_MAX < _Ans) {
-        _Xout_of_range("stoi argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return static_cast<int>(_Ans);
-}
-
-inline long stol(const string& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert string to long
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref      = 0;
-    const long _Ans = _CSTD strtol(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stol argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stol argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline unsigned long stoul(const string& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert string to unsigned long
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref               = 0;
-    const unsigned long _Ans = _CSTD strtoul(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoul argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoul argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline long long stoll(const string& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert string to long long
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref           = 0;
-    const long long _Ans = _CSTD strtoll(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoll argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoll argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline unsigned long long stoull(const string& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert string to unsigned long long
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref                    = 0;
-    const unsigned long long _Ans = _CSTD strtoull(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoull argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoull argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline float stof(const string& _Str, size_t* _Idx = nullptr) { // convert string to float
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref       = 0;
-    const float _Ans = _CSTD strtof(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stof argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stof argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline double stod(const string& _Str, size_t* _Idx = nullptr) { // convert string to double
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref        = 0;
-    const double _Ans = _CSTD strtod(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stod argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stod argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline long double stold(const string& _Str, size_t* _Idx = nullptr) { // convert string to long double
-    int& _Errno_ref  = errno; // Nonzero cost, pay it once
-    const char* _Ptr = _Str.c_str();
-    char* _Eptr;
-    _Errno_ref             = 0;
-    const long double _Ans = _CSTD strtold(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stold argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stold argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-// sto* WIDE CONVERSIONS
-inline int stoi(const wstring& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert wstring to int
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref      = 0;
-    const long _Ans = _CSTD wcstol(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoi argument");
-    }
-
-    if (_Errno_ref == ERANGE || _Ans < INT_MIN || INT_MAX < _Ans) {
-        _Xout_of_range("stoi argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return static_cast<int>(_Ans);
-}
-
-inline long stol(const wstring& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert wstring to long
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref      = 0;
-    const long _Ans = _CSTD wcstol(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stol argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stol argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline unsigned long stoul(const wstring& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert wstring to unsigned long
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref               = 0;
-    const unsigned long _Ans = _CSTD wcstoul(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoul argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoul argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline long long stoll(const wstring& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert wstring to long long
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref           = 0;
-    const long long _Ans = _CSTD wcstoll(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoll argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoll argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline unsigned long long stoull(const wstring& _Str, size_t* _Idx = nullptr, int _Base = 10) {
-    // convert wstring to unsigned long long
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref                    = 0;
-    const unsigned long long _Ans = _CSTD wcstoull(_Ptr, &_Eptr, _Base);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stoull argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stoull argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline float stof(const wstring& _Str, size_t* _Idx = nullptr) { // convert wstring to float
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref       = 0;
-    const float _Ans = _CSTD wcstof(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stof argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stof argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline double stod(const wstring& _Str, size_t* _Idx = nullptr) { // convert wstring to double
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref        = 0;
-    const double _Ans = _CSTD wcstod(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stod argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stod argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-inline long double stold(const wstring& _Str, size_t* _Idx = nullptr) { // convert wstring to long double
-    int& _Errno_ref     = errno; // Nonzero cost, pay it once
-    const wchar_t* _Ptr = _Str.c_str();
-    wchar_t* _Eptr;
-    _Errno_ref             = 0;
-    const long double _Ans = _CSTD wcstold(_Ptr, &_Eptr);
-
-    if (_Ptr == _Eptr) {
-        _Xinvalid_argument("invalid stold argument");
-    }
-
-    if (_Errno_ref == ERANGE) {
-        _Xout_of_range("stold argument out of range");
-    }
-
-    if (_Idx) {
-        *_Idx = static_cast<size_t>(_Eptr - _Ptr);
-    }
-
-    return _Ans;
-}
-
-// HELPERS FOR to_string AND to_wstring AND operator<<(duration)
-template <class _Elem, class _UTy>
-_Elem* _UIntegral_to_buff(_Elem* _RNext, _UTy _UVal) { // format _UVal into buffer *ending at* _RNext
-    static_assert(is_unsigned_v<_UTy>, "_UTy must be unsigned");
-
-#ifdef _WIN64
-    auto _UVal_trunc = _UVal;
-#else // ^^^ _WIN64 ^^^ // vvv !_WIN64 vvv
-
-    constexpr bool _Big_uty = sizeof(_UTy) > 4;
-    if constexpr (_Big_uty) { // For 64-bit numbers, work in chunks to avoid 64-bit divisions.
-        while (_UVal > 0xFFFFFFFFU) {
-            auto _UVal_chunk = static_cast<unsigned long>(_UVal % 1000000000);
-            _UVal /= 1000000000;
-
-            for (int _Idx = 0; _Idx != 9; ++_Idx) {
-                *--_RNext = static_cast<_Elem>('0' + _UVal_chunk % 10);
-                _UVal_chunk /= 10;
-            }
-        }
-    }
-
-    auto _UVal_trunc = static_cast<unsigned long>(_UVal);
-#endif // _WIN64
-
-    do {
-        *--_RNext = static_cast<_Elem>('0' + _UVal_trunc % 10);
-        _UVal_trunc /= 10;
-    } while (_UVal_trunc != 0);
-    return _RNext;
-}
-
-template <class _Elem, class _Ty>
-basic_string<_Elem> _Integral_to_string(const _Ty _Val) { // convert _Val to string
-    static_assert(is_integral_v<_Ty>, "_Ty must be integral");
-    using _UTy = make_unsigned_t<_Ty>;
-    _Elem _Buff[21]; // can hold -2^63 and 2^64 - 1, plus NUL
-    _Elem* const _Buff_end = _STD end(_Buff);
-    _Elem* _RNext          = _Buff_end;
-    const auto _UVal       = static_cast<_UTy>(_Val);
-    if (_Val < 0) {
-        _RNext    = _UIntegral_to_buff(_RNext, 0 - _UVal);
-        *--_RNext = '-';
-    } else {
-        _RNext = _UIntegral_to_buff(_RNext, _UVal);
-    }
-
-    return basic_string<_Elem>(_RNext, _Buff_end);
-}
-
-// TRANSITION, CUDA - warning: pointless comparison of unsigned integer with zero
-template <class _Elem, class _Ty>
-basic_string<_Elem> _UIntegral_to_string(const _Ty _Val) { // convert _Val to string
-    static_assert(is_integral_v<_Ty>, "_Ty must be integral");
-    static_assert(is_unsigned_v<_Ty>, "_Ty must be unsigned");
-    _Elem _Buff[21]; // can hold 2^64 - 1, plus NUL
-    _Elem* const _Buff_end = _STD end(_Buff);
-    _Elem* const _RNext    = _UIntegral_to_buff(_Buff_end, _Val);
-    return basic_string<_Elem>(_RNext, _Buff_end);
-}
-
-// to_string NARROW CONVERSIONS
-_NODISCARD inline string to_string(int _Val) { // convert int to string
-    return _Integral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(unsigned int _Val) { // convert unsigned int to string
-    return _UIntegral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(long _Val) { // convert long to string
-    return _Integral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(unsigned long _Val) { // convert unsigned long to string
-    return _UIntegral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(long long _Val) { // convert long long to string
-    return _Integral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(unsigned long long _Val) { // convert unsigned long long to string
-    return _UIntegral_to_string<char>(_Val);
-}
-
-_NODISCARD inline string to_string(double _Val) { // convert double to string
-    const auto _Len = static_cast<size_t>(_CSTD _scprintf("%f", _Val));
-    string _Str(_Len, '\0');
-    _CSTD sprintf_s(&_Str[0], _Len + 1, "%f", _Val);
-    return _Str;
-}
-
-_NODISCARD inline string to_string(float _Val) { // convert float to string
-    return _STD to_string(static_cast<double>(_Val));
-}
-
-_NODISCARD inline string to_string(long double _Val) { // convert long double to string
-    return _STD to_string(static_cast<double>(_Val));
-}
-
-// to_wstring WIDE CONVERSIONS
-_NODISCARD inline wstring to_wstring(int _Val) { // convert int to wstring
-    return _Integral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(unsigned int _Val) { // convert unsigned int to wstring
-    return _UIntegral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(long _Val) { // convert long to wstring
-    return _Integral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(unsigned long _Val) { // convert unsigned long to wstring
-    return _UIntegral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(long long _Val) { // convert long long to wstring
-    return _Integral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(unsigned long long _Val) { // convert unsigned long long to wstring
-    return _UIntegral_to_string<wchar_t>(_Val);
-}
-
-_NODISCARD inline wstring to_wstring(double _Val) { // convert double to wstring
-    const auto _Len = static_cast<size_t>(_CSTD _scwprintf(L"%f", _Val));
-    wstring _Str(_Len, L'\0');
-    _CSTD swprintf_s(&_Str[0], _Len + 1, L"%f", _Val);
-    return _Str;
-}
-
-_NODISCARD inline wstring to_wstring(float _Val) { // convert float to wstring
-    return _STD to_wstring(static_cast<double>(_Val));
-}
-
-_NODISCARD inline wstring to_wstring(long double _Val) { // convert long double to wstring
-    return _STD to_wstring(static_cast<double>(_Val));
-}
-_STD_END
-
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _STRING_
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace std
+#endif // C++20
+
+#endif /* _GLIBCXX_STRING */

@@ -1,49 +1,84 @@
-// cfenv standard header (core)
+// <cfenv> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2007-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _CFENV_
-#define _CFENV_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#include <fenv.h>
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
 
-_STD_BEGIN
-using _CSTD fegetround;
-using _CSTD fesetround;
+/** @file include/cfenv
+ *  This is a Standard C++ Library header.
+ */
 
-#if !defined(_M_CEE) || defined(_CRTBLD)
-using _CSTD feclearexcept;
-using _CSTD fegetenv;
-using _CSTD fegetexceptflag;
-using _CSTD feholdexcept;
-using _CSTD fenv_t;
-using _CSTD fesetenv;
-using _CSTD fesetexceptflag;
-using _CSTD fetestexcept;
-using _CSTD fexcept_t;
-#endif // !defined(_M_CEE) || defined(_CRTBLD)
+#ifndef _GLIBCXX_CFENV
+#define _GLIBCXX_CFENV 1
 
-#if !defined(_M_CEE) && !defined(_CRTBLD)
-using _CSTD feraiseexcept;
-using _CSTD feupdateenv;
-#endif // !defined(_M_CEE) && !defined(_CRTBLD)
-_STD_END
+#pragma GCC system_header
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
 
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _CFENV_
+#include <bits/c++config.h>
+
+#if _GLIBCXX_HAVE_FENV_H
+# include <fenv.h>
+#endif
+
+#ifdef _GLIBCXX_USE_C99_FENV_TR1
+
+#undef feclearexcept
+#undef fegetexceptflag
+#undef feraiseexcept
+#undef fesetexceptflag
+#undef fetestexcept
+#undef fegetround
+#undef fesetround
+#undef fegetenv
+#undef feholdexcept
+#undef fesetenv
+#undef feupdateenv
+
+namespace std
+{
+  // types
+  using ::fenv_t;
+  using ::fexcept_t;
+
+  // functions
+  using ::feclearexcept;
+  using ::fegetexceptflag;
+  using ::feraiseexcept;
+  using ::fesetexceptflag;
+  using ::fetestexcept;
+
+  using ::fegetround;
+  using ::fesetround;
+
+  using ::fegetenv;
+  using ::feholdexcept;
+  using ::fesetenv;
+  using ::feupdateenv;
+} // namespace std
+
+#endif // _GLIBCXX_USE_C99_FENV_TR1
+
+#endif // C++11
+
+#endif // _GLIBCXX_CFENV

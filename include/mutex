@@ -1,948 +1,893 @@
-// mutex standard header
+// <mutex> -*- C++ -*-
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 2003-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _MUTEX_
-#define _MUTEX_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
-#ifdef _M_CEE_PURE
-#error <mutex> is not supported when compiling with /clr:pure.
-#endif // _M_CEE_PURE
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
 
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/mutex
+ *  This is a Standard C++ Library header.
+ */
+
+#ifndef _GLIBCXX_MUTEX
+#define _GLIBCXX_MUTEX 1
+
+#pragma GCC system_header
+
+#if __cplusplus < 201103L
+# include <bits/c++0x_warning.h>
+#else
+
+#include <tuple>
 #include <chrono>
-#include <cstdlib>
+#include <exception>
+#include <type_traits>
 #include <system_error>
-#include <thread>
-#include <utility>
-#include <xcall_once.h>
+#include <bits/std_mutex.h>
+#include <bits/unique_lock.h>
+#if ! _GTHREAD_USE_MUTEX_TIMEDLOCK
+# include <condition_variable>
+# include <thread>
+#endif
+#include <ext/atomicity.h>     // __gnu_cxx::__is_single_threaded
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+#if defined _GLIBCXX_HAS_GTHREADS && ! defined _GLIBCXX_HAVE_TLS
+# include <bits/std_function.h>  // std::function
+#endif
 
-_STD_BEGIN
-// mutex and recursive_mutex are not supported under /clr
-#ifndef _M_CEE
-class condition_variable;
-class condition_variable_any;
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-// MUTUAL EXCLUSION
-class _Mutex_base { // base class for all mutex types
-public:
-    _Mutex_base(int _Flags = 0) noexcept {
-        _Mtx_init_in_situ(_Mymtx(), _Flags | _Mtx_try);
+  /**
+   * @addtogroup mutexes
+   * @{
+   */
+
+#ifdef _GLIBCXX_HAS_GTHREADS
+
+  // Common base class for std::recursive_mutex and std::recursive_timed_mutex
+  class __recursive_mutex_base
+  {
+  protected:
+    typedef __gthread_recursive_mutex_t		__native_type;
+
+    __recursive_mutex_base(const __recursive_mutex_base&) = delete;
+    __recursive_mutex_base& operator=(const __recursive_mutex_base&) = delete;
+
+#ifdef __GTHREAD_RECURSIVE_MUTEX_INIT
+    __native_type  _M_mutex = __GTHREAD_RECURSIVE_MUTEX_INIT;
+
+    __recursive_mutex_base() = default;
+#else
+    __native_type  _M_mutex;
+
+    __recursive_mutex_base()
+    {
+      // XXX EAGAIN, ENOMEM, EPERM, EBUSY(may), EINVAL(may)
+      __GTHREAD_RECURSIVE_MUTEX_INIT_FUNCTION(&_M_mutex);
     }
 
-    ~_Mutex_base() noexcept {
-        _Mtx_destroy_in_situ(_Mymtx());
-    }
+    ~__recursive_mutex_base()
+    { __gthread_recursive_mutex_destroy(&_M_mutex); }
+#endif
+  };
 
-    _Mutex_base(const _Mutex_base&) = delete;
-    _Mutex_base& operator=(const _Mutex_base&) = delete;
+  /// The standard recursive mutex type.
+  class recursive_mutex : private __recursive_mutex_base
+  {
+  public:
+    typedef __native_type* 			native_handle_type;
 
-    void lock() {
-        _Check_C_return(_Mtx_lock(_Mymtx()));
-    }
-
-    _NODISCARD bool try_lock() {
-        const auto _Res = _Mtx_trylock(_Mymtx());
-        switch (_Res) {
-        case _Thrd_success:
-            return true;
-        case _Thrd_busy:
-            return false;
-        default:
-            _Throw_C_error(_Res);
-        }
-    }
-
-    void unlock() {
-        _Mtx_unlock(_Mymtx());
-    }
-
-    using native_handle_type = void*;
-
-    _NODISCARD native_handle_type native_handle() {
-        return _Mtx_getconcrtcs(_Mymtx());
-    }
-
-private:
-    friend condition_variable;
-    friend condition_variable_any;
-
-    aligned_storage_t<_Mtx_internal_imp_size, _Mtx_internal_imp_alignment> _Mtx_storage;
-
-    _Mtx_t _Mymtx() noexcept { // get pointer to _Mtx_internal_imp_t inside _Mtx_storage
-        return reinterpret_cast<_Mtx_t>(&_Mtx_storage);
-    }
-};
-
-class mutex : public _Mutex_base { // class for mutual exclusion
-public:
-    /* constexpr */ mutex() noexcept // TRANSITION, ABI
-        : _Mutex_base() {}
-
-    mutex(const mutex&) = delete;
-    mutex& operator=(const mutex&) = delete;
-};
-
-class recursive_mutex : public _Mutex_base { // class for recursive mutual exclusion
-public:
-    recursive_mutex() : _Mutex_base(_Mtx_recursive) {}
-
-    _NODISCARD bool try_lock() noexcept {
-        return _Mutex_base::try_lock();
-    }
+    recursive_mutex() = default;
+    ~recursive_mutex() = default;
 
     recursive_mutex(const recursive_mutex&) = delete;
     recursive_mutex& operator=(const recursive_mutex&) = delete;
-};
-#endif // _M_CEE
 
-// LOCK PROPERTIES
-struct adopt_lock_t { // indicates adopt lock
-    explicit adopt_lock_t() = default;
-};
+    void
+    lock()
+    {
+      int __e = __gthread_recursive_mutex_lock(&_M_mutex);
 
-struct defer_lock_t { // indicates defer lock
-    explicit defer_lock_t() = default;
-};
-
-struct try_to_lock_t { // indicates try to lock
-    explicit try_to_lock_t() = default;
-};
-
-_INLINE_VAR constexpr adopt_lock_t adopt_lock{};
-_INLINE_VAR constexpr defer_lock_t defer_lock{};
-_INLINE_VAR constexpr try_to_lock_t try_to_lock{};
-
-// CLASS TEMPLATE unique_lock
-template <class _Mutex>
-class unique_lock { // whizzy class with destructor that unlocks mutex
-public:
-    using mutex_type = _Mutex;
-
-    // CONSTRUCT, ASSIGN, AND DESTROY
-    unique_lock() noexcept : _Pmtx(nullptr), _Owns(false) {}
-
-    _NODISCARD_CTOR explicit unique_lock(_Mutex& _Mtx)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(false) { // construct and lock
-        _Pmtx->lock();
-        _Owns = true;
+      // EINVAL, EAGAIN, EBUSY, EINVAL, EDEADLK(may)
+      if (__e)
+	__throw_system_error(__e);
     }
 
-    _NODISCARD_CTOR unique_lock(_Mutex& _Mtx, adopt_lock_t)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(true) {} // construct and assume already locked
-
-    unique_lock(_Mutex& _Mtx, defer_lock_t) noexcept
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(false) {} // construct but don't lock
-
-    _NODISCARD_CTOR unique_lock(_Mutex& _Mtx, try_to_lock_t)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(_Pmtx->try_lock()) {} // construct and try to lock
-
-    template <class _Rep, class _Period>
-    _NODISCARD_CTOR unique_lock(_Mutex& _Mtx, const chrono::duration<_Rep, _Period>& _Rel_time)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(_Pmtx->try_lock_for(_Rel_time)) {} // construct and lock with timeout
-
-    template <class _Clock, class _Duration>
-    _NODISCARD_CTOR unique_lock(_Mutex& _Mtx, const chrono::time_point<_Clock, _Duration>& _Abs_time)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(_Pmtx->try_lock_until(_Abs_time)) {
-        // construct and lock with timeout
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
+    bool
+    try_lock() noexcept
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      return !__gthread_recursive_mutex_trylock(&_M_mutex);
     }
 
-    _NODISCARD_CTOR unique_lock(_Mutex& _Mtx, const xtime* _Abs_time)
-        : _Pmtx(_STD addressof(_Mtx)), _Owns(false) { // try to lock until _Abs_time
-        _Owns = _Pmtx->try_lock_until(_Abs_time);
+    void
+    unlock()
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      __gthread_recursive_mutex_unlock(&_M_mutex);
     }
 
-    _NODISCARD_CTOR unique_lock(unique_lock&& _Other) noexcept : _Pmtx(_Other._Pmtx), _Owns(_Other._Owns) {
-        _Other._Pmtx = nullptr;
-        _Other._Owns = false;
-    }
-
-    unique_lock& operator=(unique_lock&& _Other) {
-        if (this != _STD addressof(_Other)) {
-            if (_Owns) {
-                _Pmtx->unlock();
-            }
-
-            _Pmtx        = _Other._Pmtx;
-            _Owns        = _Other._Owns;
-            _Other._Pmtx = nullptr;
-            _Other._Owns = false;
-        }
-        return *this;
-    }
-
-    ~unique_lock() noexcept {
-        if (_Owns) {
-            _Pmtx->unlock();
-        }
-    }
-
-    unique_lock(const unique_lock&) = delete;
-    unique_lock& operator=(const unique_lock&) = delete;
-
-    void lock() { // lock the mutex
-        _Validate();
-        _Pmtx->lock();
-        _Owns = true;
-    }
-
-    _NODISCARD bool try_lock() {
-        _Validate();
-        _Owns = _Pmtx->try_lock();
-        return _Owns;
-    }
-
-    template <class _Rep, class _Period>
-    _NODISCARD bool try_lock_for(const chrono::duration<_Rep, _Period>& _Rel_time) {
-        _Validate();
-        _Owns = _Pmtx->try_lock_for(_Rel_time);
-        return _Owns;
-    }
-
-    template <class _Clock, class _Duration>
-    _NODISCARD bool try_lock_until(const chrono::time_point<_Clock, _Duration>& _Abs_time) {
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
-        _Validate();
-        _Owns = _Pmtx->try_lock_until(_Abs_time);
-        return _Owns;
-    }
-
-    _NODISCARD bool try_lock_until(const xtime* _Abs_time) {
-        _Validate();
-        _Owns = _Pmtx->try_lock_until(_Abs_time);
-        return _Owns;
-    }
-
-    void unlock() {
-        if (!_Pmtx || !_Owns) {
-            _Throw_system_error(errc::operation_not_permitted);
-        }
-
-        _Pmtx->unlock();
-        _Owns = false;
-    }
-
-    void swap(unique_lock& _Other) noexcept {
-        _STD swap(_Pmtx, _Other._Pmtx);
-        _STD swap(_Owns, _Other._Owns);
-    }
-
-    _Mutex* release() noexcept {
-        _Mutex* _Res = _Pmtx;
-        _Pmtx        = nullptr;
-        _Owns        = false;
-        return _Res;
-    }
-
-    _NODISCARD bool owns_lock() const noexcept {
-        return _Owns;
-    }
-
-    explicit operator bool() const noexcept {
-        return _Owns;
-    }
-
-    _NODISCARD _Mutex* mutex() const noexcept {
-        return _Pmtx;
-    }
-
-private:
-    _Mutex* _Pmtx;
-    bool _Owns;
-
-    void _Validate() const { // check if the mutex can be locked
-        if (!_Pmtx) {
-            _Throw_system_error(errc::operation_not_permitted);
-        }
-
-        if (_Owns) {
-            _Throw_system_error(errc::resource_deadlock_would_occur);
-        }
-    }
-};
-
-// FUNCTION TEMPLATE swap FOR unique_lock
-template <class _Mutex>
-void swap(unique_lock<_Mutex>& _Left, unique_lock<_Mutex>& _Right) noexcept {
-    _Left.swap(_Right);
-}
-
-// FUNCTION TEMPLATE _Lock_from_locks
-template <size_t... _Indices, class... _LockN>
-void _Lock_from_locks(const int _Target, index_sequence<_Indices...>, _LockN&... _LkN) { // lock _LkN[_Target]
-    int _Ignored[] = {((static_cast<int>(_Indices) == _Target ? (void) _LkN.lock() : void()), 0)...};
-    (void) _Ignored;
-}
-
-// FUNCTION TEMPLATE _Try_lock_from_locks
-template <size_t... _Indices, class... _LockN>
-bool _Try_lock_from_locks(
-    const int _Target, index_sequence<_Indices...>, _LockN&... _LkN) { // try to lock _LkN[_Target]
-    bool _Result{};
-    int _Ignored[] = {((static_cast<int>(_Indices) == _Target ? (void) (_Result = _LkN.try_lock()) : void()), 0)...};
-    (void) _Ignored;
-    return _Result;
-}
-
-// FUNCTION TEMPLATE _Unlock_locks
-template <size_t... _Indices, class... _LockN>
-void _Unlock_locks(const int _First, const int _Last, index_sequence<_Indices...>, _LockN&... _LkN) noexcept
-/* terminates */ {
-    // unlock locks in _LkN[_First, _Last)
-    int _Ignored[] = {
-        ((_First <= static_cast<int>(_Indices) && static_cast<int>(_Indices) < _Last ? (void) _LkN.unlock() : void()),
-            0)...};
-    (void) _Ignored;
-}
-
-// FUNCTION TEMPLATE try_lock
-template <class... _LockN>
-int _Try_lock_range(const int _First, const int _Last, _LockN&... _LkN) {
-    using _Indices = index_sequence_for<_LockN...>;
-    int _Next      = _First;
-    _TRY_BEGIN
-    for (; _Next != _Last; ++_Next) {
-        if (!_Try_lock_from_locks(_Next, _Indices{}, _LkN...)) { // try_lock failed, backout
-            _Unlock_locks(_First, _Next, _Indices{}, _LkN...);
-            return _Next;
-        }
-    }
-    _CATCH_ALL
-    _Unlock_locks(_First, _Next, _Indices{}, _LkN...);
-    _RERAISE;
-    _CATCH_END
-
-    return -1;
-}
-
-template <class _Lock0, class _Lock1, class _Lock2, class... _LockN>
-int _Try_lock1(_Lock0& _Lk0, _Lock1& _Lk1, _Lock2& _Lk2, _LockN&... _LkN) { // try to lock 3 or more locks
-    return _Try_lock_range(0, sizeof...(_LockN) + 3, _Lk0, _Lk1, _Lk2, _LkN...);
-}
-
-template <class _Lock0, class _Lock1>
-int _Try_lock1(_Lock0& _Lk0, _Lock1& _Lk1) {
-    // try to lock 2 locks, special case for better codegen and reduced metaprogramming for common case
-    if (!_Lk0.try_lock()) {
-        return 0;
-    }
-
-    _TRY_BEGIN
-    if (!_Lk1.try_lock()) {
-        _Lk0.unlock();
-        return 1;
-    }
-    _CATCH_ALL
-    _Lk0.unlock();
-    _RERAISE;
-    _CATCH_END
-
-    return -1;
-}
-
-template <class _Lock0, class _Lock1, class... _LockN>
-_NODISCARD int try_lock(_Lock0& _Lk0, _Lock1& _Lk1, _LockN&... _LkN) { // try to lock multiple locks
-    return _Try_lock1(_Lk0, _Lk1, _LkN...);
-}
-
-// FUNCTION TEMPLATE lock
-template <class... _LockN>
-int _Lock_attempt(const int _Hard_lock, _LockN&... _LkN) {
-    // attempt to lock 3 or more locks, starting by locking _LkN[_Hard_lock] and trying to lock the rest
-    using _Indices = index_sequence_for<_LockN...>;
-    _Lock_from_locks(_Hard_lock, _Indices{}, _LkN...);
-    int _Failed        = -1;
-    int _Backout_start = _Hard_lock; // that is, unlock _Hard_lock
-
-    _TRY_BEGIN
-    _Failed = _Try_lock_range(0, _Hard_lock, _LkN...);
-    if (_Failed == -1) {
-        _Backout_start = 0; // that is, unlock [0, _Hard_lock] if the next throws
-        _Failed        = _Try_lock_range(_Hard_lock + 1, sizeof...(_LockN), _LkN...);
-        if (_Failed == -1) { // we got all the locks
-            return -1;
-        }
-    }
-    _CATCH_ALL
-    _Unlock_locks(_Backout_start, _Hard_lock + 1, _Indices{}, _LkN...);
-    _RERAISE;
-    _CATCH_END
-
-    // we didn't get all the locks, backout
-    _Unlock_locks(_Backout_start, _Hard_lock + 1, _Indices{}, _LkN...);
-    _STD this_thread::yield();
-    return _Failed;
-}
-
-template <class _Lock0, class _Lock1, class _Lock2, class... _LockN>
-void _Lock_nonmember1(_Lock0& _Lk0, _Lock1& _Lk1, _Lock2& _Lk2, _LockN&... _LkN) {
-    // lock 3 or more locks, without deadlock
-    int _Hard_lock = 0;
-    while (_Hard_lock != -1) {
-        _Hard_lock = _Lock_attempt(_Hard_lock, _Lk0, _Lk1, _Lk2, _LkN...);
-    }
-}
-
-template <class _Lock0, class _Lock1>
-bool _Lock_attempt_small(_Lock0& _Lk0, _Lock1& _Lk1) {
-    // attempt to lock 2 locks, by first locking _Lk0, and then trying to lock _Lk1 returns whether to try again
-    _Lk0.lock();
-    _TRY_BEGIN
-    if (_Lk1.try_lock()) {
-        return false;
-    }
-    _CATCH_ALL
-    _Lk0.unlock();
-    _RERAISE;
-    _CATCH_END
-
-    _Lk0.unlock();
-    _STD this_thread::yield();
-    return true;
-}
-
-template <class _Lock0, class _Lock1>
-void _Lock_nonmember1(_Lock0& _Lk0, _Lock1& _Lk1) {
-    // lock 2 locks, without deadlock, special case for better codegen and reduced metaprogramming for common case
-    while (_Lock_attempt_small(_Lk0, _Lk1) && _Lock_attempt_small(_Lk1, _Lk0)) { // keep trying
-    }
-}
-
-template <class _Lock0, class _Lock1, class... _LockN>
-void lock(_Lock0& _Lk0, _Lock1& _Lk1, _LockN&... _LkN) { // lock multiple locks, without deadlock
-    _Lock_nonmember1(_Lk0, _Lk1, _LkN...);
-}
-
-// CLASS TEMPLATE lock_guard
-template <class _Mutex>
-class _NODISCARD lock_guard { // class with destructor that unlocks a mutex
-public:
-    using mutex_type = _Mutex;
-
-    explicit lock_guard(_Mutex& _Mtx) : _MyMutex(_Mtx) { // construct and lock
-        _MyMutex.lock();
-    }
-
-    lock_guard(_Mutex& _Mtx, adopt_lock_t) : _MyMutex(_Mtx) {} // construct but don't lock
-
-    ~lock_guard() noexcept {
-        _MyMutex.unlock();
-    }
-
-    lock_guard(const lock_guard&) = delete;
-    lock_guard& operator=(const lock_guard&) = delete;
-
-private:
-    _Mutex& _MyMutex;
-};
-
-#if _HAS_CXX17
-// CLASS TEMPLATE scoped_lock
-template <class... _Mutexes>
-class _NODISCARD scoped_lock { // class with destructor that unlocks mutexes
-public:
-    explicit scoped_lock(_Mutexes&... _Mtxes) : _MyMutexes(_Mtxes...) { // construct and lock
-        _STD lock(_Mtxes...);
-    }
-
-    explicit scoped_lock(adopt_lock_t, _Mutexes&... _Mtxes) : _MyMutexes(_Mtxes...) {} // construct but don't lock
-
-    ~scoped_lock() noexcept {
-        _STD apply([](_Mutexes&... _Mtxes) { (..., (void) _Mtxes.unlock()); }, _MyMutexes);
-    }
-
-    scoped_lock(const scoped_lock&) = delete;
-    scoped_lock& operator=(const scoped_lock&) = delete;
-
-private:
-    tuple<_Mutexes&...> _MyMutexes;
-};
-
-template <class _Mutex>
-class _NODISCARD scoped_lock<_Mutex> {
-public:
-    using mutex_type = _Mutex;
-
-    explicit scoped_lock(_Mutex& _Mtx) : _MyMutex(_Mtx) { // construct and lock
-        _MyMutex.lock();
-    }
-
-    explicit scoped_lock(adopt_lock_t, _Mutex& _Mtx) : _MyMutex(_Mtx) {} // construct but don't lock
-
-    ~scoped_lock() noexcept {
-        _MyMutex.unlock();
-    }
-
-    scoped_lock(const scoped_lock&) = delete;
-    scoped_lock& operator=(const scoped_lock&) = delete;
-
-private:
-    _Mutex& _MyMutex;
-};
-
-template <>
-class scoped_lock<> {
-public:
-    explicit scoped_lock() {}
-    explicit scoped_lock(adopt_lock_t) {}
-    ~scoped_lock() noexcept {}
-
-    scoped_lock(const scoped_lock&) = delete;
-    scoped_lock& operator=(const scoped_lock&) = delete;
-};
-#endif // _HAS_CXX17
-
-// FUNCTION TEMPLATE call_once
-#ifdef _M_CEE
-#define _WINDOWS_API              __stdcall
-#define _RENAME_WINDOWS_API(_Api) _Api##_clr
-#else // ^^^ _M_CEE // !_M_CEE vvv
-#define _WINDOWS_API              __declspec(dllimport) __stdcall
-#define _RENAME_WINDOWS_API(_Api) _Api
-#endif // _M_CEE
-
-// WINBASEAPI
-// BOOL
-// WINAPI
-// InitOnceBeginInitialize(
-//     _Inout_ LPINIT_ONCE lpInitOnce,
-//     _In_ DWORD dwFlags,
-//     _Out_ PBOOL fPending,
-//     _Outptr_opt_result_maybenull_ LPVOID* lpContext
-//     );
-extern "C" _NODISCARD int _WINDOWS_API _RENAME_WINDOWS_API(__std_init_once_begin_initialize)(
-    void** _LpInitOnce, unsigned long _DwFlags, int* _FPending, void** _LpContext) noexcept;
-
-// WINBASEAPI
-// BOOL
-// WINAPI
-// InitOnceComplete(
-//     _Inout_ LPINIT_ONCE lpInitOnce,
-//     _In_ DWORD dwFlags,
-//     _In_opt_ LPVOID lpContext
-//     );
-extern "C" _NODISCARD int _WINDOWS_API _RENAME_WINDOWS_API(__std_init_once_complete)(
-    void** _LpInitOnce, unsigned long _DwFlags, void* _LpContext) noexcept;
-
-// #define RTL_RUN_ONCE_INIT_FAILED    0x00000004UL
-// #define INIT_ONCE_INIT_FAILED       RTL_RUN_ONCE_INIT_FAILED
-_INLINE_VAR constexpr unsigned long _Init_once_init_failed = 0x4UL;
-
-struct _Init_once_completer {
-    once_flag& _Once;
-    unsigned long _DwFlags;
-    ~_Init_once_completer() {
-        if (_RENAME_WINDOWS_API(__std_init_once_complete)(&_Once._Opaque, _DwFlags, nullptr) == 0) {
-            _CSTD abort();
-        }
-    }
-};
-
-template <class _Fn, class... _Args>
-void(call_once)(once_flag& _Once, _Fn&& _Fx, _Args&&... _Ax) noexcept(
-    noexcept(_STD invoke(_STD forward<_Fn>(_Fx), _STD forward<_Args>(_Ax)...))) /* strengthened */ {
-    // call _Fx(_Ax...) once
-    // parentheses against common "#define call_once(flag,func) pthread_once(flag,func)"
-    int _Pending;
-    if (_RENAME_WINDOWS_API(__std_init_once_begin_initialize)(&_Once._Opaque, 0, &_Pending, nullptr) == 0) {
-        _CSTD abort();
-    }
-
-    if (_Pending != 0) {
-        _Init_once_completer _Op{_Once, _Init_once_init_failed};
-        _STD invoke(_STD forward<_Fn>(_Fx), _STD forward<_Args>(_Ax)...);
-        _Op._DwFlags = 0;
-    }
-}
-
-#undef _WINDOWS_API
-#undef _RENAME_WINDOWS_API
-
-// condition_variable, timed_mutex, and recursive_timed_mutex are not supported under /clr
-#ifndef _M_CEE
-enum class cv_status { // names for wait returns
-    no_timeout,
-    timeout
-};
-
-class condition_variable { // class for waiting for conditions
-public:
-    using native_handle_type = _Cnd_t;
-
-    condition_variable() {
-        _Cnd_init_in_situ(_Mycnd());
-    }
-
-    ~condition_variable() noexcept {
-        _Cnd_destroy_in_situ(_Mycnd());
-    }
-
-    condition_variable(const condition_variable&) = delete;
-    condition_variable& operator=(const condition_variable&) = delete;
-
-    void notify_one() noexcept { // wake up one waiter
-        _Cnd_signal(_Mycnd());
-    }
-
-    void notify_all() noexcept { // wake up all waiters
-        _Cnd_broadcast(_Mycnd());
-    }
-
-    void wait(unique_lock<mutex>& _Lck) { // wait for signal
-        // Nothing to do to comply with LWG-2135 because std::mutex lock/unlock are nothrow
-        _Cnd_wait(_Mycnd(), _Lck.mutex()->_Mymtx());
-    }
-
-    template <class _Predicate>
-    void wait(unique_lock<mutex>& _Lck, _Predicate _Pred) { // wait for signal and test predicate
-        while (!_Pred()) {
-            wait(_Lck);
-        }
-    }
-
-    template <class _Rep, class _Period>
-    cv_status wait_for(unique_lock<mutex>& _Lck, const chrono::duration<_Rep, _Period>& _Rel_time) {
-        // wait for duration
-        if (_Rel_time <= chrono::duration<_Rep, _Period>::zero()) {
-            return cv_status::timeout;
-        }
-
-        // TRANSITION, ABI: The standard says that we should use a steady clock,
-        // but unfortunately our ABI speaks struct xtime, which is relative to the system clock.
-        _CSTD xtime _Tgt;
-        const bool _Clamped     = _To_xtime_10_day_clamped(_Tgt, _Rel_time);
-        const cv_status _Result = wait_until(_Lck, &_Tgt);
-        if (_Clamped) {
-            return cv_status::no_timeout;
-        }
-
-        return _Result;
-    }
-
-    template <class _Rep, class _Period, class _Predicate>
-    bool wait_for(unique_lock<mutex>& _Lck, const chrono::duration<_Rep, _Period>& _Rel_time, _Predicate _Pred) {
-        // wait for signal with timeout and check predicate
-        return _Wait_until1(_Lck, _To_absolute_time(_Rel_time), _Pred);
-    }
-
-    template <class _Clock, class _Duration>
-    cv_status wait_until(unique_lock<mutex>& _Lck, const chrono::time_point<_Clock, _Duration>& _Abs_time) {
-        // wait until time point
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
-        for (;;) {
-            const auto _Now = _Clock::now();
-            if (_Abs_time <= _Now) {
-                return cv_status::timeout;
-            }
-
-            _CSTD xtime _Tgt;
-            (void) _To_xtime_10_day_clamped(_Tgt, _Abs_time - _Now);
-            const cv_status _Result = wait_until(_Lck, &_Tgt);
-            if (_Result == cv_status::no_timeout) {
-                return cv_status::no_timeout;
-            }
-        }
-    }
-
-    template <class _Clock, class _Duration, class _Predicate>
-    bool wait_until(
-        unique_lock<mutex>& _Lck, const chrono::time_point<_Clock, _Duration>& _Abs_time, _Predicate _Pred) {
-        // wait for signal with timeout and check predicate
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
-        return _Wait_until1(_Lck, _Abs_time, _Pred);
-    }
-
-    cv_status wait_until(unique_lock<mutex>& _Lck, const xtime* _Abs_time) {
-        // wait for signal with timeout
-        if (!_Mtx_current_owns(_Lck.mutex()->_Mymtx())) {
-            _Throw_Cpp_error(_OPERATION_NOT_PERMITTED);
-        }
-
-        // Nothing to do to comply with LWG-2135 because std::mutex lock/unlock are nothrow
-        const int _Res = _Cnd_timedwait(_Mycnd(), _Lck.mutex()->_Mymtx(), _Abs_time);
-        switch (_Res) {
-        case _Thrd_success:
-            return cv_status::no_timeout;
-        case _Thrd_timedout:
-            return cv_status::timeout;
-        default:
-            _Throw_C_error(_Res);
-        }
-    }
-
-    template <class _Predicate>
-    bool wait_until(unique_lock<mutex>& _Lck, const xtime* _Abs_time, _Predicate _Pred) {
-        // wait for signal with timeout and check predicate
-        return _Wait_until1(_Lck, _Abs_time, _Pred);
-    }
-
-    _NODISCARD native_handle_type native_handle() {
-        return _Mycnd();
-    }
-
-    void _Register(unique_lock<mutex>& _Lck, int* _Ready) { // register this object for release at thread exit
-        _Cnd_register_at_thread_exit(_Mycnd(), _Lck.release()->_Mymtx(), _Ready);
-    }
-
-    void _Unregister(mutex& _Mtx) { // unregister this object for release at thread exit
-        _Cnd_unregister_at_thread_exit(_Mtx._Mymtx());
-    }
-
-private:
-    aligned_storage_t<_Cnd_internal_imp_size, _Cnd_internal_imp_alignment> _Cnd_storage;
-
-    _Cnd_t _Mycnd() noexcept { // get pointer to _Cnd_internal_imp_t inside _Cnd_storage
-        return reinterpret_cast<_Cnd_t>(&_Cnd_storage);
-    }
-
-    template <class _Predicate>
-    bool _Wait_until1(unique_lock<mutex>& _Lck, const xtime* _Abs_time, _Predicate& _Pred) {
-        // wait for signal with timeout and check predicate
-        while (!_Pred()) {
-            if (wait_until(_Lck, _Abs_time) == cv_status::timeout) {
-                return _Pred();
-            }
-        }
-
-        return true;
-    }
-
-    template <class _Clock, class _Duration, class _Predicate>
-    bool _Wait_until1(
-        unique_lock<mutex>& _Lck, const chrono::time_point<_Clock, _Duration>& _Abs_time, _Predicate& _Pred) {
-        while (!_Pred()) {
-            const auto _Now = _Clock::now();
-            if (_Abs_time <= _Now) {
-                return false;
-            }
-
-            _CSTD xtime _Tgt;
-            const bool _Clamped = _To_xtime_10_day_clamped(_Tgt, _Abs_time - _Now);
-            if (wait_until(_Lck, &_Tgt) == cv_status::timeout && !_Clamped) {
-                return _Pred();
-            }
-        }
-
-        return true;
-    }
-};
-
-struct _UInt_is_zero {
-    const unsigned int& _UInt;
-
-    _NODISCARD bool operator()() const {
-        return _UInt == 0;
-    }
-};
-
-class timed_mutex { // class for timed mutual exclusion
-public:
-    timed_mutex() noexcept : _My_locked(0) {}
+    native_handle_type
+    native_handle() noexcept
+    { return &_M_mutex; }
+  };
+
+#if _GTHREAD_USE_MUTEX_TIMEDLOCK
+  template<typename _Derived>
+    class __timed_mutex_impl
+    {
+    protected:
+      template<typename _Rep, typename _Period>
+	bool
+	_M_try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+	{
+#if _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+	  using __clock = chrono::steady_clock;
+#else
+	  using __clock = chrono::system_clock;
+#endif
+
+	  auto __rt = chrono::duration_cast<__clock::duration>(__rtime);
+	  if (ratio_greater<__clock::period, _Period>())
+	    ++__rt;
+	  return _M_try_lock_until(__clock::now() + __rt);
+	}
+
+      template<typename _Duration>
+	bool
+	_M_try_lock_until(const chrono::time_point<chrono::system_clock,
+						   _Duration>& __atime)
+	{
+	  auto __s = chrono::time_point_cast<chrono::seconds>(__atime);
+	  auto __ns = chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
+
+	  __gthread_time_t __ts = {
+	    static_cast<std::time_t>(__s.time_since_epoch().count()),
+	    static_cast<long>(__ns.count())
+	  };
+
+	  return static_cast<_Derived*>(this)->_M_timedlock(__ts);
+	}
+
+#ifdef _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+      template<typename _Duration>
+	bool
+	_M_try_lock_until(const chrono::time_point<chrono::steady_clock,
+						   _Duration>& __atime)
+	{
+	  auto __s = chrono::time_point_cast<chrono::seconds>(__atime);
+	  auto __ns = chrono::duration_cast<chrono::nanoseconds>(__atime - __s);
+
+	  __gthread_time_t __ts = {
+	    static_cast<std::time_t>(__s.time_since_epoch().count()),
+	    static_cast<long>(__ns.count())
+	  };
+
+	  return static_cast<_Derived*>(this)->_M_clocklock(CLOCK_MONOTONIC,
+							    __ts);
+	}
+#endif
+
+      template<typename _Clock, typename _Duration>
+	bool
+	_M_try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
+	{
+#if __cplusplus > 201703L
+	  static_assert(chrono::is_clock_v<_Clock>);
+#endif
+	  // The user-supplied clock may not tick at the same rate as
+	  // steady_clock, so we must loop in order to guarantee that
+	  // the timeout has expired before returning false.
+	  auto __now = _Clock::now();
+	  do {
+	    auto __rtime = __atime - __now;
+	    if (_M_try_lock_for(__rtime))
+	      return true;
+	    __now = _Clock::now();
+	  } while (__atime > __now);
+	  return false;
+	}
+    };
+
+  /// The standard timed mutex type.
+  class timed_mutex
+  : private __mutex_base, public __timed_mutex_impl<timed_mutex>
+  {
+  public:
+    typedef __native_type* 		  	native_handle_type;
+
+    timed_mutex() = default;
+    ~timed_mutex() = default;
 
     timed_mutex(const timed_mutex&) = delete;
     timed_mutex& operator=(const timed_mutex&) = delete;
 
-    void lock() { // lock the mutex
-        unique_lock<mutex> _Lock(_My_mutex);
-        while (_My_locked != 0) {
-            _My_cond.wait(_Lock);
-        }
+    void
+    lock()
+    {
+      int __e = __gthread_mutex_lock(&_M_mutex);
 
-        _My_locked = UINT_MAX;
+      // EINVAL, EAGAIN, EBUSY, EINVAL, EDEADLK(may)
+      if (__e)
+	__throw_system_error(__e);
     }
 
-    _NODISCARD bool try_lock() noexcept { // try to lock the mutex
-        lock_guard<mutex> _Lock(_My_mutex);
-        if (_My_locked != 0) {
-            return false;
-        } else {
-            _My_locked = UINT_MAX;
-            return true;
-        }
-    }
-
-    void unlock() { // unlock the mutex
-        {
-            // The lock here is necessary
-            lock_guard<mutex> _Lock(_My_mutex);
-            _My_locked = 0;
-        }
-        _My_cond.notify_one();
+    bool
+    try_lock() noexcept
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      return !__gthread_mutex_trylock(&_M_mutex);
     }
 
     template <class _Rep, class _Period>
-    _NODISCARD bool try_lock_for(const chrono::duration<_Rep, _Period>& _Rel_time) { // try to lock for duration
-        return try_lock_until(_To_absolute_time(_Rel_time));
-    }
-
-    template <class _Time>
-    bool _Try_lock_until(_Time _Abs_time) { // try to lock the mutex with timeout
-        unique_lock<mutex> _Lock(_My_mutex);
-        if (!_My_cond.wait_until(_Lock, _Abs_time, _UInt_is_zero{_My_locked})) {
-            return false;
-        }
-
-        _My_locked = UINT_MAX;
-        return true;
-    }
+      bool
+      try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+      { return _M_try_lock_for(__rtime); }
 
     template <class _Clock, class _Duration>
-    _NODISCARD bool try_lock_until(const chrono::time_point<_Clock, _Duration>& _Abs_time) {
-        // try to lock the mutex with timeout
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
-        return _Try_lock_until(_Abs_time);
+      bool
+      try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
+      { return _M_try_lock_until(__atime); }
+
+    void
+    unlock()
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      __gthread_mutex_unlock(&_M_mutex);
     }
 
-    _NODISCARD bool try_lock_until(const xtime* _Abs_time) { // try to lock the mutex with timeout
-        return _Try_lock_until(_Abs_time);
-    }
+    native_handle_type
+    native_handle() noexcept
+    { return &_M_mutex; }
 
-private:
-    mutex _My_mutex;
-    condition_variable _My_cond;
-    unsigned int _My_locked;
-};
+    private:
+      friend class __timed_mutex_impl<timed_mutex>;
 
-class recursive_timed_mutex { // class for recursive timed mutual exclusion
-public:
-    recursive_timed_mutex() noexcept : _My_locked(0) {}
+      bool
+      _M_timedlock(const __gthread_time_t& __ts)
+      { return !__gthread_mutex_timedlock(&_M_mutex, &__ts); }
+
+#if _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+      bool
+      _M_clocklock(clockid_t clockid, const __gthread_time_t& __ts)
+      { return !pthread_mutex_clocklock(&_M_mutex, clockid, &__ts); }
+#endif
+  };
+
+  /// recursive_timed_mutex
+  class recursive_timed_mutex
+  : private __recursive_mutex_base,
+    public __timed_mutex_impl<recursive_timed_mutex>
+  {
+  public:
+    typedef __native_type* 			native_handle_type;
+
+    recursive_timed_mutex() = default;
+    ~recursive_timed_mutex() = default;
 
     recursive_timed_mutex(const recursive_timed_mutex&) = delete;
     recursive_timed_mutex& operator=(const recursive_timed_mutex&) = delete;
 
-    void lock() { // lock the mutex
-        const thread::id _Tid = this_thread::get_id();
+    void
+    lock()
+    {
+      int __e = __gthread_recursive_mutex_lock(&_M_mutex);
 
-        unique_lock<mutex> _Lock(_My_mutex);
-
-        if (_Tid == _My_owner) {
-            if (_My_locked < UINT_MAX) {
-                ++_My_locked;
-            } else {
-                _Throw_system_error(errc::device_or_resource_busy);
-            }
-        } else {
-            while (_My_locked != 0) {
-                _My_cond.wait(_Lock);
-            }
-
-            _My_locked = 1;
-            _My_owner  = _Tid;
-        }
+      // EINVAL, EAGAIN, EBUSY, EINVAL, EDEADLK(may)
+      if (__e)
+	__throw_system_error(__e);
     }
 
-    _NODISCARD bool try_lock() noexcept { // try to lock the mutex
-        const thread::id _Tid = this_thread::get_id();
-
-        lock_guard<mutex> _Lock(_My_mutex);
-
-        if (_Tid == _My_owner) {
-            if (_My_locked < UINT_MAX) {
-                ++_My_locked;
-            } else {
-                return false;
-            }
-        } else {
-            if (_My_locked != 0) {
-                return false;
-            } else {
-                _My_locked = 1;
-                _My_owner  = _Tid;
-            }
-        }
-        return true;
-    }
-
-    void unlock() { // unlock the mutex
-        bool _Do_notify = false;
-
-        {
-            lock_guard<mutex> _Lock(_My_mutex);
-            --_My_locked;
-            if (_My_locked == 0) {
-                _Do_notify = true;
-                _My_owner  = thread::id();
-            }
-        }
-
-        if (_Do_notify) {
-            _My_cond.notify_one();
-        }
+    bool
+    try_lock() noexcept
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      return !__gthread_recursive_mutex_trylock(&_M_mutex);
     }
 
     template <class _Rep, class _Period>
-    _NODISCARD bool try_lock_for(const chrono::duration<_Rep, _Period>& _Rel_time) { // try to lock for duration
-        return try_lock_until(_To_absolute_time(_Rel_time));
-    }
-
-    template <class _Time>
-    bool _Try_lock_until(_Time _Abs_time) { // try to lock the mutex with timeout
-        const thread::id _Tid = this_thread::get_id();
-
-        unique_lock<mutex> _Lock(_My_mutex);
-
-        if (_Tid == _My_owner) {
-            if (_My_locked < UINT_MAX) {
-                ++_My_locked;
-            } else {
-                return false;
-            }
-        } else {
-            if (!_My_cond.wait_until(_Lock, _Abs_time, _UInt_is_zero{_My_locked})) {
-                return false;
-            }
-
-            _My_locked = 1;
-            _My_owner  = _Tid;
-        }
-        return true;
-    }
+      bool
+      try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+      { return _M_try_lock_for(__rtime); }
 
     template <class _Clock, class _Duration>
-    _NODISCARD bool try_lock_until(const chrono::time_point<_Clock, _Duration>& _Abs_time) {
-        // try to lock the mutex with timeout
-#if _HAS_CXX20
-        static_assert(chrono::is_clock_v<_Clock>, "Clock type required");
-#endif // _HAS_CXX20
-        return _Try_lock_until(_Abs_time);
+      bool
+      try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
+      { return _M_try_lock_until(__atime); }
+
+    void
+    unlock()
+    {
+      // XXX EINVAL, EAGAIN, EBUSY
+      __gthread_recursive_mutex_unlock(&_M_mutex);
     }
 
-    _NODISCARD bool try_lock_until(const xtime* _Abs_time) { // try to lock the mutex with timeout
-        return _Try_lock_until(_Abs_time);
+    native_handle_type
+    native_handle() noexcept
+    { return &_M_mutex; }
+
+    private:
+      friend class __timed_mutex_impl<recursive_timed_mutex>;
+
+      bool
+      _M_timedlock(const __gthread_time_t& __ts)
+      { return !__gthread_recursive_mutex_timedlock(&_M_mutex, &__ts); }
+
+#ifdef _GLIBCXX_USE_PTHREAD_MUTEX_CLOCKLOCK
+      bool
+      _M_clocklock(clockid_t clockid, const __gthread_time_t& __ts)
+      { return !pthread_mutex_clocklock(&_M_mutex, clockid, &__ts); }
+#endif
+  };
+
+#else // !_GTHREAD_USE_MUTEX_TIMEDLOCK
+
+  /// timed_mutex
+  class timed_mutex
+  {
+    mutex		_M_mut;
+    condition_variable	_M_cv;
+    bool		_M_locked = false;
+
+  public:
+
+    timed_mutex() = default;
+    ~timed_mutex() { __glibcxx_assert( !_M_locked ); }
+
+    timed_mutex(const timed_mutex&) = delete;
+    timed_mutex& operator=(const timed_mutex&) = delete;
+
+    void
+    lock()
+    {
+      unique_lock<mutex> __lk(_M_mut);
+      _M_cv.wait(__lk, [&]{ return !_M_locked; });
+      _M_locked = true;
     }
 
-private:
-    mutex _My_mutex;
-    condition_variable _My_cond;
-    unsigned int _My_locked;
-    thread::id _My_owner;
-};
-#endif // _M_CEE
-_STD_END
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _MUTEX_
+    bool
+    try_lock()
+    {
+      lock_guard<mutex> __lk(_M_mut);
+      if (_M_locked)
+	return false;
+      _M_locked = true;
+      return true;
+    }
+
+    template<typename _Rep, typename _Period>
+      bool
+      try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+      {
+	unique_lock<mutex> __lk(_M_mut);
+	if (!_M_cv.wait_for(__lk, __rtime, [&]{ return !_M_locked; }))
+	  return false;
+	_M_locked = true;
+	return true;
+      }
+
+    template<typename _Clock, typename _Duration>
+      bool
+      try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
+      {
+	unique_lock<mutex> __lk(_M_mut);
+	if (!_M_cv.wait_until(__lk, __atime, [&]{ return !_M_locked; }))
+	  return false;
+	_M_locked = true;
+	return true;
+      }
+
+    void
+    unlock()
+    {
+      lock_guard<mutex> __lk(_M_mut);
+      __glibcxx_assert( _M_locked );
+      _M_locked = false;
+      _M_cv.notify_one();
+    }
+  };
+
+  /// recursive_timed_mutex
+  class recursive_timed_mutex
+  {
+    mutex		_M_mut;
+    condition_variable	_M_cv;
+    thread::id		_M_owner;
+    unsigned		_M_count = 0;
+
+    // Predicate type that tests whether the current thread can lock a mutex.
+    struct _Can_lock
+    {
+      // Returns true if the mutex is unlocked or is locked by _M_caller.
+      bool
+      operator()() const noexcept
+      { return _M_mx->_M_count == 0 || _M_mx->_M_owner == _M_caller; }
+
+      const recursive_timed_mutex* _M_mx;
+      thread::id _M_caller;
+    };
+
+  public:
+
+    recursive_timed_mutex() = default;
+    ~recursive_timed_mutex() { __glibcxx_assert( _M_count == 0 ); }
+
+    recursive_timed_mutex(const recursive_timed_mutex&) = delete;
+    recursive_timed_mutex& operator=(const recursive_timed_mutex&) = delete;
+
+    void
+    lock()
+    {
+      auto __id = this_thread::get_id();
+      _Can_lock __can_lock{this, __id};
+      unique_lock<mutex> __lk(_M_mut);
+      _M_cv.wait(__lk, __can_lock);
+      if (_M_count == -1u)
+	__throw_system_error(EAGAIN); // [thread.timedmutex.recursive]/3
+      _M_owner = __id;
+      ++_M_count;
+    }
+
+    bool
+    try_lock()
+    {
+      auto __id = this_thread::get_id();
+      _Can_lock __can_lock{this, __id};
+      lock_guard<mutex> __lk(_M_mut);
+      if (!__can_lock())
+	return false;
+      if (_M_count == -1u)
+	return false;
+      _M_owner = __id;
+      ++_M_count;
+      return true;
+    }
+
+    template<typename _Rep, typename _Period>
+      bool
+      try_lock_for(const chrono::duration<_Rep, _Period>& __rtime)
+      {
+	auto __id = this_thread::get_id();
+	_Can_lock __can_lock{this, __id};
+	unique_lock<mutex> __lk(_M_mut);
+	if (!_M_cv.wait_for(__lk, __rtime, __can_lock))
+	  return false;
+	if (_M_count == -1u)
+	  return false;
+	_M_owner = __id;
+	++_M_count;
+	return true;
+      }
+
+    template<typename _Clock, typename _Duration>
+      bool
+      try_lock_until(const chrono::time_point<_Clock, _Duration>& __atime)
+      {
+	auto __id = this_thread::get_id();
+	_Can_lock __can_lock{this, __id};
+	unique_lock<mutex> __lk(_M_mut);
+	if (!_M_cv.wait_until(__lk, __atime, __can_lock))
+	  return false;
+	if (_M_count == -1u)
+	  return false;
+	_M_owner = __id;
+	++_M_count;
+	return true;
+      }
+
+    void
+    unlock()
+    {
+      lock_guard<mutex> __lk(_M_mut);
+      __glibcxx_assert( _M_owner == this_thread::get_id() );
+      __glibcxx_assert( _M_count > 0 );
+      if (--_M_count == 0)
+	{
+	  _M_owner = {};
+	  _M_cv.notify_one();
+	}
+    }
+  };
+
+#endif
+#endif // _GLIBCXX_HAS_GTHREADS
+
+  /// @cond undocumented
+  template<typename _Lock>
+    inline unique_lock<_Lock>
+    __try_to_lock(_Lock& __l)
+    { return unique_lock<_Lock>{__l, try_to_lock}; }
+
+  template<int _Idx, bool _Continue = true>
+    struct __try_lock_impl
+    {
+      template<typename... _Lock>
+	static void
+	__do_try_lock(tuple<_Lock&...>& __locks, int& __idx)
+	{
+          __idx = _Idx;
+          auto __lock = std::__try_to_lock(std::get<_Idx>(__locks));
+          if (__lock.owns_lock())
+            {
+	      constexpr bool __cont = _Idx + 2 < sizeof...(_Lock);
+	      using __try_locker = __try_lock_impl<_Idx + 1, __cont>;
+	      __try_locker::__do_try_lock(__locks, __idx);
+              if (__idx == -1)
+                __lock.release();
+            }
+	}
+    };
+
+  template<int _Idx>
+    struct __try_lock_impl<_Idx, false>
+    {
+      template<typename... _Lock>
+	static void
+	__do_try_lock(tuple<_Lock&...>& __locks, int& __idx)
+	{
+          __idx = _Idx;
+          auto __lock = std::__try_to_lock(std::get<_Idx>(__locks));
+          if (__lock.owns_lock())
+            {
+              __idx = -1;
+              __lock.release();
+            }
+	}
+    };
+  /// @endcond
+
+  /** @brief Generic try_lock.
+   *  @param __l1 Meets Lockable requirements (try_lock() may throw).
+   *  @param __l2 Meets Lockable requirements (try_lock() may throw).
+   *  @param __l3 Meets Lockable requirements (try_lock() may throw).
+   *  @return Returns -1 if all try_lock() calls return true. Otherwise returns
+   *          a 0-based index corresponding to the argument that returned false.
+   *  @post Either all arguments are locked, or none will be.
+   *
+   *  Sequentially calls try_lock() on each argument.
+   */
+  template<typename _Lock1, typename _Lock2, typename... _Lock3>
+    int
+    try_lock(_Lock1& __l1, _Lock2& __l2, _Lock3&... __l3)
+    {
+      int __idx;
+      auto __locks = std::tie(__l1, __l2, __l3...);
+      __try_lock_impl<0>::__do_try_lock(__locks, __idx);
+      return __idx;
+    }
+
+  /** @brief Generic lock.
+   *  @param __l1 Meets Lockable requirements (try_lock() may throw).
+   *  @param __l2 Meets Lockable requirements (try_lock() may throw).
+   *  @param __l3 Meets Lockable requirements (try_lock() may throw).
+   *  @throw An exception thrown by an argument's lock() or try_lock() member.
+   *  @post All arguments are locked.
+   *
+   *  All arguments are locked via a sequence of calls to lock(), try_lock()
+   *  and unlock().  If the call exits via an exception any locks that were
+   *  obtained will be released.
+   */
+  template<typename _L1, typename _L2, typename... _L3>
+    void
+    lock(_L1& __l1, _L2& __l2, _L3&... __l3)
+    {
+      while (true)
+        {
+          using __try_locker = __try_lock_impl<0, sizeof...(_L3) != 0>;
+          unique_lock<_L1> __first(__l1);
+          int __idx;
+          auto __locks = std::tie(__l2, __l3...);
+          __try_locker::__do_try_lock(__locks, __idx);
+          if (__idx == -1)
+            {
+              __first.release();
+              return;
+            }
+        }
+    }
+
+#if __cplusplus >= 201703L
+#define __cpp_lib_scoped_lock 201703
+  /** @brief A scoped lock type for multiple lockable objects.
+   *
+   * A scoped_lock controls mutex ownership within a scope, releasing
+   * ownership in the destructor.
+   */
+  template<typename... _MutexTypes>
+    class scoped_lock
+    {
+    public:
+      explicit scoped_lock(_MutexTypes&... __m) : _M_devices(std::tie(__m...))
+      { std::lock(__m...); }
+
+      explicit scoped_lock(adopt_lock_t, _MutexTypes&... __m) noexcept
+      : _M_devices(std::tie(__m...))
+      { } // calling thread owns mutex
+
+      ~scoped_lock()
+      { std::apply([](auto&... __m) { (__m.unlock(), ...); }, _M_devices); }
+
+      scoped_lock(const scoped_lock&) = delete;
+      scoped_lock& operator=(const scoped_lock&) = delete;
+
+    private:
+      tuple<_MutexTypes&...> _M_devices;
+    };
+
+  template<>
+    class scoped_lock<>
+    {
+    public:
+      explicit scoped_lock() = default;
+      explicit scoped_lock(adopt_lock_t) noexcept { }
+      ~scoped_lock() = default;
+
+      scoped_lock(const scoped_lock&) = delete;
+      scoped_lock& operator=(const scoped_lock&) = delete;
+    };
+
+  template<typename _Mutex>
+    class scoped_lock<_Mutex>
+    {
+    public:
+      using mutex_type = _Mutex;
+
+      explicit scoped_lock(mutex_type& __m) : _M_device(__m)
+      { _M_device.lock(); }
+
+      explicit scoped_lock(adopt_lock_t, mutex_type& __m) noexcept
+      : _M_device(__m)
+      { } // calling thread owns mutex
+
+      ~scoped_lock()
+      { _M_device.unlock(); }
+
+      scoped_lock(const scoped_lock&) = delete;
+      scoped_lock& operator=(const scoped_lock&) = delete;
+
+    private:
+      mutex_type&  _M_device;
+    };
+#endif // C++17
+
+#ifdef _GLIBCXX_HAS_GTHREADS
+  /// Flag type used by std::call_once
+  struct once_flag
+  {
+    constexpr once_flag() noexcept = default;
+
+    /// Deleted copy constructor
+    once_flag(const once_flag&) = delete;
+    /// Deleted assignment operator
+    once_flag& operator=(const once_flag&) = delete;
+
+  private:
+    // For gthreads targets a pthread_once_t is used with pthread_once, but
+    // for most targets this doesn't work correctly for exceptional executions.
+    __gthread_once_t _M_once = __GTHREAD_ONCE_INIT;
+
+    struct _Prepare_execution;
+
+    template<typename _Callable, typename... _Args>
+      friend void
+      call_once(once_flag& __once, _Callable&& __f, _Args&&... __args);
+  };
+
+  /// @cond undocumented
+# ifdef _GLIBCXX_HAVE_TLS
+  // If TLS is available use thread-local state for the type-erased callable
+  // that is being run by std::call_once in the current thread.
+  extern __thread void* __once_callable;
+  extern __thread void (*__once_call)();
+
+  // RAII type to set up state for pthread_once call.
+  struct once_flag::_Prepare_execution
+  {
+    template<typename _Callable>
+      explicit
+      _Prepare_execution(_Callable& __c)
+      {
+	// Store address in thread-local pointer:
+	__once_callable = std::__addressof(__c);
+	// Trampoline function to invoke the closure via thread-local pointer:
+	__once_call = [] { (*static_cast<_Callable*>(__once_callable))(); };
+      }
+
+    ~_Prepare_execution()
+    {
+      // PR libstdc++/82481
+      __once_callable = nullptr;
+      __once_call = nullptr;
+    }
+
+    _Prepare_execution(const _Prepare_execution&) = delete;
+    _Prepare_execution& operator=(const _Prepare_execution&) = delete;
+  };
+
+# else
+  // Without TLS use a global std::mutex and store the callable in a
+  // global std::function.
+  extern function<void()> __once_functor;
+
+  extern void
+  __set_once_functor_lock_ptr(unique_lock<mutex>*);
+
+  extern mutex&
+  __get_once_mutex();
+
+  // RAII type to set up state for pthread_once call.
+  struct once_flag::_Prepare_execution
+  {
+    template<typename _Callable>
+      explicit
+      _Prepare_execution(_Callable& __c)
+      {
+	// Store the callable in the global std::function
+	__once_functor = __c;
+	__set_once_functor_lock_ptr(&_M_functor_lock);
+      }
+
+    ~_Prepare_execution()
+    {
+      if (_M_functor_lock)
+	__set_once_functor_lock_ptr(nullptr);
+    }
+
+  private:
+    // XXX This deadlocks if used recursively (PR 97949)
+    unique_lock<mutex> _M_functor_lock{__get_once_mutex()};
+
+    _Prepare_execution(const _Prepare_execution&) = delete;
+    _Prepare_execution& operator=(const _Prepare_execution&) = delete;
+  };
+# endif
+  /// @endcond
+
+  // This function is passed to pthread_once by std::call_once.
+  // It runs __once_call() or __once_functor().
+  extern "C" void __once_proxy(void);
+
+  /// Invoke a callable and synchronize with other calls using the same flag
+  template<typename _Callable, typename... _Args>
+    void
+    call_once(once_flag& __once, _Callable&& __f, _Args&&... __args)
+    {
+      // Closure type that runs the function
+      auto __callable = [&] {
+	  std::__invoke(std::forward<_Callable>(__f),
+			std::forward<_Args>(__args)...);
+      };
+
+      once_flag::_Prepare_execution __exec(__callable);
+
+      // XXX pthread_once does not reset the flag if an exception is thrown.
+      if (int __e = __gthread_once(&__once._M_once, &__once_proxy))
+	__throw_system_error(__e);
+    }
+
+#else // _GLIBCXX_HAS_GTHREADS
+
+  /// Flag type used by std::call_once
+  struct once_flag
+  {
+    constexpr once_flag() noexcept = default;
+
+    /// Deleted copy constructor
+    once_flag(const once_flag&) = delete;
+    /// Deleted assignment operator
+    once_flag& operator=(const once_flag&) = delete;
+
+  private:
+    // There are two different std::once_flag interfaces, abstracting four
+    // different implementations.
+    // The single-threaded interface uses the _M_activate() and _M_finish(bool)
+    // functions, which start and finish an active execution respectively.
+    // See [thread.once.callonce] in C++11 for the definition of
+    // active/passive/returning/exceptional executions.
+    enum _Bits : int { _Init = 0, _Active = 1, _Done = 2 };
+
+    int _M_once = _Bits::_Init;
+
+    // Check to see if all executions will be passive now.
+    bool
+    _M_passive() const noexcept;
+
+    // Attempts to begin an active execution.
+    bool _M_activate();
+
+    // Must be called to complete an active execution.
+    // The argument is true if the active execution was a returning execution,
+    // false if it was an exceptional execution.
+    void _M_finish(bool __returning) noexcept;
+
+    // RAII helper to call _M_finish.
+    struct _Active_execution
+    {
+      explicit _Active_execution(once_flag& __flag) : _M_flag(__flag) { }
+
+      ~_Active_execution() { _M_flag._M_finish(_M_returning); }
+
+      _Active_execution(const _Active_execution&) = delete;
+      _Active_execution& operator=(const _Active_execution&) = delete;
+
+      once_flag& _M_flag;
+      bool _M_returning = false;
+    };
+
+    template<typename _Callable, typename... _Args>
+      friend void
+      call_once(once_flag& __once, _Callable&& __f, _Args&&... __args);
+  };
+
+  // Inline definitions of std::once_flag members for single-threaded targets.
+
+  inline bool
+  once_flag::_M_passive() const noexcept
+  { return _M_once == _Bits::_Done; }
+
+  inline bool
+  once_flag::_M_activate()
+  {
+    if (_M_once == _Bits::_Init) [[__likely__]]
+      {
+	_M_once = _Bits::_Active;
+	return true;
+      }
+    else if (_M_passive()) // Caller should have checked this already.
+      return false;
+    else
+      __throw_system_error(EDEADLK);
+  }
+
+  inline void
+  once_flag::_M_finish(bool __returning) noexcept
+  { _M_once = __returning ? _Bits::_Done : _Bits::_Init; }
+
+  /// Invoke a callable and synchronize with other calls using the same flag
+  template<typename _Callable, typename... _Args>
+    inline void
+    call_once(once_flag& __once, _Callable&& __f, _Args&&... __args)
+    {
+      if (__once._M_passive())
+	return;
+      else if (__once._M_activate())
+	{
+	  once_flag::_Active_execution __exec(__once);
+
+	  // _GLIBCXX_RESOLVE_LIB_DEFECTS
+	  // 2442. call_once() shouldn't DECAY_COPY()
+	  std::__invoke(std::forward<_Callable>(__f),
+			std::forward<_Args>(__args)...);
+
+	  // __f(__args...) did not throw
+	  __exec._M_returning = true;
+	}
+    }
+#endif // _GLIBCXX_HAS_GTHREADS
+
+  /// @} group mutexes
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+#endif // C++11
+
+#endif // _GLIBCXX_MUTEX

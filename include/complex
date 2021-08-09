@@ -1,2285 +1,2024 @@
-// complex standard header
+// The template and inlines for the -*- C++ -*- complex number classes.
 
-// Copyright (c) Microsoft Corporation.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// Copyright (C) 1997-2021 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
 
-#pragma once
-#ifndef _COMPLEX_
-#define _COMPLEX_
-#include <yvals_core.h>
-#if _STL_COMPILER_PREPROCESSOR
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/complex
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 26.2  Complex Numbers
+// Note: this is not a conforming implementation.
+// Initially implemented by Ulrich Drepper <drepper@cygnus.com>
+// Improved by Gabriel Dos Reis <dosreis@cmla.ens-cachan.fr>
+//
+
+#ifndef _GLIBCXX_COMPLEX
+#define _GLIBCXX_COMPLEX 1
+
+#pragma GCC system_header
+
+#include <bits/c++config.h>
+#include <bits/cpp_type_traits.h>
+#include <ext/type_traits.h>
 #include <cmath>
-#include <cstdint>
-#include <limits>
 #include <sstream>
-#include <type_traits>
-#include <xutility>
-#include <ymath.h>
 
-#ifdef _M_CEE_PURE
-// no intrinsics for /clr:pure
-#elif defined(__clang__)
-// TRANSITION, not using FMA intrinsics for Clang yet
-#elif defined(_M_IX86) || (defined(_M_X64) && !defined(_M_ARM64EC))
-#define _FMP_USING_X86_X64_INTRINSICS
-#include <emmintrin.h>
-#include <isa_availability.h>
-extern "C" int __isa_available;
-extern "C" __m128d __cdecl _mm_fmsub_sd(__m128d, __m128d, __m128d);
-#elif defined(_M_ARM64) || defined(_M_ARM64EC)
-#define _FMP_USING_ARM64_INTRINSICS
-#include <arm64_neon.h>
-#endif // ^^^ defined(_M_ARM64) || defined(_M_ARM64EC) ^^^
+// Get rid of a macro possibly defined in <complex.h>
+#undef complex
 
-#pragma pack(push, _CRT_PACKING)
-#pragma warning(push, _STL_WARNING_LEVEL)
-#pragma warning(disable : _STL_DISABLED_WARNINGS)
-_STL_DISABLE_CLANG_WARNINGS
-#pragma push_macro("new")
-#undef new
+#if __cplusplus > 201703L
+# define __cpp_lib_constexpr_complex 201711L
+#endif
 
-#ifndef _C_COMPLEX_T
-#define _C_COMPLEX_T // Also defined by UCRT <complex.h>
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
-struct _C_double_complex {
-    double _Val[2];
-};
+  /**
+   * @defgroup complex_numbers Complex Numbers
+   * @ingroup numerics
+   *
+   * Classes and functions for complex numbers.
+   * @{
+   */
 
-struct _C_float_complex {
-    float _Val[2];
-};
+  // Forward declarations.
+  template<typename _Tp> class complex;
+  template<> class complex<float>;
+  template<> class complex<double>;
+  template<> class complex<long double>;
 
-struct _C_ldouble_complex {
-    long double _Val[2];
-};
-#endif // _C_COMPLEX_T
+  ///  Return magnitude of @a z.
+  template<typename _Tp> _Tp abs(const complex<_Tp>&);
+  ///  Return phase angle of @a z.
+  template<typename _Tp> _Tp arg(const complex<_Tp>&);
+  ///  Return @a z magnitude squared.
+  template<typename _Tp> _Tp _GLIBCXX20_CONSTEXPR norm(const complex<_Tp>&);
 
-// COMPLEX _Val OFFSETS
-#define _RE 0
-#define _IM 1
+  ///  Return complex conjugate of @a z.
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR complex<_Tp> conj(const complex<_Tp>&);
+  ///  Return complex with magnitude @a rho and angle @a theta.
+  template<typename _Tp> complex<_Tp> polar(const _Tp&, const _Tp& = 0);
 
-_STD_BEGIN
+  // Transcendentals:
+  /// Return complex cosine of @a z.
+  template<typename _Tp> complex<_Tp> cos(const complex<_Tp>&);
+  /// Return complex hyperbolic cosine of @a z.
+  template<typename _Tp> complex<_Tp> cosh(const complex<_Tp>&);
+  /// Return complex base e exponential of @a z.
+  template<typename _Tp> complex<_Tp> exp(const complex<_Tp>&);
+  /// Return complex natural logarithm of @a z.
+  template<typename _Tp> complex<_Tp> log(const complex<_Tp>&);
+  /// Return complex base 10 logarithm of @a z.
+  template<typename _Tp> complex<_Tp> log10(const complex<_Tp>&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, int);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&, const _Tp&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const complex<_Tp>&,
+                                          const complex<_Tp>&);
+  /// Return @a x to the @a y'th power.
+  template<typename _Tp> complex<_Tp> pow(const _Tp&, const complex<_Tp>&);
+  /// Return complex sine of @a z.
+  template<typename _Tp> complex<_Tp> sin(const complex<_Tp>&);
+  /// Return complex hyperbolic sine of @a z.
+  template<typename _Tp> complex<_Tp> sinh(const complex<_Tp>&);
+  /// Return complex square root of @a z.
+  template<typename _Tp> complex<_Tp> sqrt(const complex<_Tp>&);
+  /// Return complex tangent of @a z.
+  template<typename _Tp> complex<_Tp> tan(const complex<_Tp>&);
+  /// Return complex hyperbolic tangent of @a z.
+  template<typename _Tp> complex<_Tp> tanh(const complex<_Tp>&);
 
-// implements multi-precision floating-point arithmetic for numerical algorithms
-#pragma float_control(precise, on, push)
-namespace _Float_multi_prec {
-    // multi-precision floating-point types
-    template <class _Ty, int _Prec>
-    struct _Fmp_t;
 
-    template <class _Ty>
-    struct _Fmp_t<_Ty, 2> {
-        static_assert(is_floating_point_v<_Ty>, "_Ty must be floating-point");
-        _Ty _Val0; // most significant numeric_limits<_Ty>::precision bits
-        _Ty _Val1; // least significant numeric_limits<_Ty>::precision bits
+  // 26.2.2  Primary template class complex
+  /**
+   *  Template to represent complex numbers.
+   *
+   *  Specializations for float, double, and long double are part of the
+   *  library.  Results with any other type are not guaranteed.
+   *
+   *  @param  Tp  Type of real and imaginary values.
+  */
+  template<typename _Tp>
+    class complex
+    {
+    public:
+      /// Value typedef.
+      typedef _Tp value_type;
+
+      ///  Default constructor.  First parameter is x, second parameter is y.
+      ///  Unspecified parameters default to 0.
+      _GLIBCXX_CONSTEXPR complex(const _Tp& __r = _Tp(), const _Tp& __i = _Tp())
+      : _M_real(__r), _M_imag(__i) { }
+
+      // Let the compiler synthesize the copy constructor
+#if __cplusplus >= 201103L
+      constexpr complex(const complex&) = default;
+#endif
+
+      ///  Converting constructor.
+      template<typename _Up>
+        _GLIBCXX_CONSTEXPR complex(const complex<_Up>& __z)
+	: _M_real(__z.real()), _M_imag(__z.imag()) { }
+
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      _GLIBCXX_ABI_TAG_CXX11
+      constexpr _Tp
+      real() const { return _M_real; }
+
+      _GLIBCXX_ABI_TAG_CXX11
+      constexpr _Tp
+      imag() const { return _M_imag; }
+#else
+      ///  Return real part of complex number.
+      _Tp&
+      real() { return _M_real; }
+
+      ///  Return real part of complex number.
+      const _Tp&
+      real() const { return _M_real; }
+
+      ///  Return imaginary part of complex number.
+      _Tp&
+      imag() { return _M_imag; }
+
+      ///  Return imaginary part of complex number.
+      const _Tp&
+      imag() const { return _M_imag; }
+#endif
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      _GLIBCXX20_CONSTEXPR void
+      real(_Tp __val) { _M_real = __val; }
+
+      _GLIBCXX20_CONSTEXPR void
+      imag(_Tp __val) { _M_imag = __val; }
+
+      /// Assign a scalar to this complex number.
+      _GLIBCXX20_CONSTEXPR complex<_Tp>& operator=(const _Tp&);
+
+      /// Add a scalar to this complex number.
+      // 26.2.5/1
+      _GLIBCXX20_CONSTEXPR complex<_Tp>&
+      operator+=(const _Tp& __t)
+      {
+	_M_real += __t;
+	return *this;
+      }
+
+      /// Subtract a scalar from this complex number.
+      // 26.2.5/3
+      _GLIBCXX20_CONSTEXPR complex<_Tp>&
+      operator-=(const _Tp& __t)
+      {
+	_M_real -= __t;
+	return *this;
+      }
+
+      /// Multiply this complex number by a scalar.
+      _GLIBCXX20_CONSTEXPR complex<_Tp>& operator*=(const _Tp&);
+      /// Divide this complex number by a scalar.
+      _GLIBCXX20_CONSTEXPR complex<_Tp>& operator/=(const _Tp&);
+
+      // Let the compiler synthesize the copy assignment operator
+#if __cplusplus >= 201103L
+      _GLIBCXX20_CONSTEXPR complex& operator=(const complex&) = default;
+#endif
+
+      /// Assign another complex number to this one.
+      template<typename _Up>
+        _GLIBCXX20_CONSTEXPR complex<_Tp>& operator=(const complex<_Up>&);
+      /// Add another complex number to this one.
+      template<typename _Up>
+        _GLIBCXX20_CONSTEXPR complex<_Tp>& operator+=(const complex<_Up>&);
+      /// Subtract another complex number from this one.
+      template<typename _Up>
+        _GLIBCXX20_CONSTEXPR complex<_Tp>& operator-=(const complex<_Up>&);
+      /// Multiply this complex number by another.
+      template<typename _Up>
+        _GLIBCXX20_CONSTEXPR complex<_Tp>& operator*=(const complex<_Up>&);
+      /// Divide this complex number by another.
+      template<typename _Up>
+        _GLIBCXX20_CONSTEXPR complex<_Tp>& operator/=(const complex<_Up>&);
+
+      _GLIBCXX_CONSTEXPR complex __rep() const
+      { return *this; }
+
+    private:
+      _Tp _M_real;
+      _Tp _M_imag;
     };
 
-    // addition
-
-    // 1x precision + 1x precision -> 2x precision
-    // the result is exact when:
-    // 1) the result doesn't overflow
-    // 2) either underflow is gradual, or no internal underflow occurs
-    // 3) intermediate precision is either the same as _Ty, or greater than twice the precision of _Ty
-    // 4) parameters and local variables do not retain extra intermediate precision
-    // 5) rounding mode is rounding to nearest
-    // violation of condition 3 or 5 could lead to relative error on the order of epsilon^2
-    // violation of other conditions could lead to worse results
-    template <class _Ty>
-    _NODISCARD constexpr _Fmp_t<_Ty, 2> _Add_x2(const _Ty _Xval, const _Ty _Yval) noexcept {
-        const _Ty _Sum0 = _Xval + _Yval;
-        const _Ty _Ymod = _Sum0 - _Xval;
-        const _Ty _Xmod = _Sum0 - _Ymod;
-        const _Ty _Yerr = _Yval - _Ymod;
-        const _Ty _Xerr = _Xval - _Xmod;
-        return {_Sum0, _Xerr + _Yerr};
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator=(const _Tp& __t)
+    {
+     _M_real = __t;
+     _M_imag = _Tp();
+     return *this;
     }
 
-    // 1x precision + 1x precision -> 2x precision
-    // requires: exponent(_Xval) + countr_zero(significand(_Xval)) >= exponent(_Yval) || _Xval == 0
-    // the result is exact when:
-    // 0) the requirement above is satisfied
-    // 1) no internal overflow occurs
-    // 2) either underflow is gradual, or no internal underflow occurs
-    // 3) intermediate precision is either the same as _Ty, or greater than twice the precision of _Ty
-    // 4) parameters and local variables do not retain extra intermediate precision
-    // 5) rounding mode is rounding to nearest
-    // violation of condition 3 or 5 could lead to relative error on the order of epsilon^2
-    // violation of other conditions could lead to worse results
-    template <class _Ty>
-    _NODISCARD constexpr _Fmp_t<_Ty, 2> _Add_small_x2(const _Ty _Xval, const _Ty _Yval) noexcept {
-        const _Ty _Sum0 = _Xval + _Yval;
-        const _Ty _Ymod = _Sum0 - _Xval;
-        const _Ty _Yerr = _Yval - _Ymod;
-        return {_Sum0, _Yerr};
+  // 26.2.5/5
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator*=(const _Tp& __t)
+    {
+      _M_real *= __t;
+      _M_imag *= __t;
+      return *this;
     }
 
-    // 1x precision + 2x precision -> 2x precision
-    // requires: exponent(_Xval) + countr_zero(significand(_Xval)) >= exponent(_Yval._Val0) || _Xval == 0
-    template <class _Ty>
-    _NODISCARD constexpr _Fmp_t<_Ty, 2> _Add_small_x2(const _Ty _Xval, const _Fmp_t<_Ty, 2>& _Yval) noexcept {
-        const _Fmp_t<_Ty, 2> _Sum0 = _Add_small_x2(_Xval, _Yval._Val0);
-        return _Add_small_x2(_Sum0._Val0, _Sum0._Val1 + _Yval._Val1);
+  // 26.2.5/7
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator/=(const _Tp& __t)
+    {
+      _M_real /= __t;
+      _M_imag /= __t;
+      return *this;
     }
 
-    // 2x precision + 2x precision -> 1x precision
-    template <class _Ty>
-    _NODISCARD constexpr _Ty _Add_x1(const _Fmp_t<_Ty, 2>& _Xval, const _Fmp_t<_Ty, 2>& _Yval) noexcept {
-        const _Fmp_t<_Ty, 2> _Sum00 = _Add_x2(_Xval._Val0, _Yval._Val0);
-        return _Sum00._Val0 + (_Sum00._Val1 + (_Xval._Val1 + _Yval._Val1));
+  template<typename _Tp>
+    template<typename _Up>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator=(const complex<_Up>& __z)
+    {
+      _M_real = __z.real();
+      _M_imag = __z.imag();
+      return *this;
     }
 
-    // multiplication
-
-    // round to 26 significant bits, ties toward zero
-    _NODISCARD _CONSTEXPR_BIT_CAST double _High_half(const double _Val) noexcept {
-        const auto _Bits           = _Bit_cast<unsigned long long>(_Val);
-        const auto _High_half_bits = (_Bits + 0x3ff'ffffULL) & 0xffff'ffff'f800'0000ULL;
-        return _Bit_cast<double>(_High_half_bits);
+  // 26.2.5/9
+  template<typename _Tp>
+    template<typename _Up>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator+=(const complex<_Up>& __z)
+    {
+      _M_real += __z.real();
+      _M_imag += __z.imag();
+      return *this;
     }
 
-    // _Xval * _Xval - _Prod0
-    // the result is exact when:
-    // 1) _Prod0 is _Xval^2 faithfully rounded
-    // 2) no internal overflow or underflow occurs
-    // violation of condition 1 could lead to relative error on the order of epsilon
-    _NODISCARD _CONSTEXPR_BIT_CAST double _Sqr_error_fallback(const double _Xval, const double _Prod0) noexcept {
-        const double _Xhigh = _High_half(_Xval);
-        const double _Xlow  = _Xval - _Xhigh;
-        return ((_Xhigh * _Xhigh - _Prod0) + 2.0 * _Xhigh * _Xlow) + _Xlow * _Xlow;
+  // 26.2.5/11
+  template<typename _Tp>
+    template<typename _Up>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator-=(const complex<_Up>& __z)
+    {
+      _M_real -= __z.real();
+      _M_imag -= __z.imag();
+      return *this;
     }
 
-#ifdef _FMP_USING_X86_X64_INTRINSICS
-    _NODISCARD inline double _Sqr_error_x86_x64_fma(const double _Xval, const double _Prod0) noexcept {
-        const __m128d _Mx      = _mm_set_sd(_Xval);
-        const __m128d _Mprod0  = _mm_set_sd(_Prod0);
-        const __m128d _Mresult = _mm_fmsub_sd(_Mx, _Mx, _Mprod0);
-        double _Result;
-        _mm_store_sd(&_Result, _Mresult);
-        return _Result;
+  // 26.2.5/13
+  // XXX: This is a grammar school implementation.
+  template<typename _Tp>
+    template<typename _Up>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator*=(const complex<_Up>& __z)
+    {
+      const _Tp __r = _M_real * __z.real() - _M_imag * __z.imag();
+      _M_imag = _M_real * __z.imag() + _M_imag * __z.real();
+      _M_real = __r;
+      return *this;
     }
-#endif // _FMP_USING_X86_X64_INTRINSICS
 
-#ifdef _FMP_USING_ARM64_INTRINSICS
-    _NODISCARD inline double _Sqr_error_arm64_neon(const double _Xval, const double _Prod0) noexcept {
-        const float64x1_t _Mx      = vld1_f64(&_Xval);
-        const float64x1_t _Mprod0  = vld1_f64(&_Prod0);
-        const float64x1_t _Mresult = vfma_f64(vneg_f64(_Mprod0), _Mx, _Mx);
-        double _Result;
-        vst1_f64(&_Result, _Mresult);
-        return _Result;
+  // 26.2.5/15
+  // XXX: This is a grammar school implementation.
+  template<typename _Tp>
+    template<typename _Up>
+    _GLIBCXX20_CONSTEXPR complex<_Tp>&
+    complex<_Tp>::operator/=(const complex<_Up>& __z)
+    {
+      const _Tp __r =  _M_real * __z.real() + _M_imag * __z.imag();
+      const _Tp __n = std::norm(__z);
+      _M_imag = (_M_imag * __z.real() - _M_real * __z.imag()) / __n;
+      _M_real = __r / __n;
+      return *this;
     }
-#endif // _FMP_USING_ARM64_INTRINSICS
 
-    // square(1x precision) -> 2x precision
-    // the result is exact when no internal overflow or underflow occurs
-    _NODISCARD inline _Fmp_t<double, 2> _Sqr_x2(const double _Xval) noexcept {
-        const double _Prod0 = _Xval * _Xval;
+  // Operators:
+  ///@{
+  ///  Return new complex value @a x plus @a y.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator+(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r += __y;
+      return __r;
+    }
 
-#if defined(_FMP_USING_X86_X64_INTRINSICS)
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator+(const complex<_Tp>& __x, const _Tp& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r += __y;
+      return __r;
+    }
 
-#ifdef __AVX2__
-        return {_Prod0, _Sqr_error_x86_x64_fma(_Xval, _Prod0)};
-#else // ^^^ defined(__AVX2__) / !defined(__AVX2__) vvv
-        const bool _Definitely_have_fma = __isa_available >= __ISA_AVAILABLE_AVX2;
-        if (_Definitely_have_fma) {
-            return {_Prod0, _Sqr_error_x86_x64_fma(_Xval, _Prod0)};
-        } else {
-            return {_Prod0, _Sqr_error_fallback(_Xval, _Prod0)};
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator+(const _Tp& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __y;
+      __r += __x;
+      return __r;
+    }
+  ///@}
+
+  ///@{
+  ///  Return new complex value @a x minus @a y.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator-(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r -= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator-(const complex<_Tp>& __x, const _Tp& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r -= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator-(const _Tp& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = -__y;
+      __r += __x;
+      return __r;
+    }
+  ///@}
+
+  ///@{
+  ///  Return new complex value @a x times @a y.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator*(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r *= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator*(const complex<_Tp>& __x, const _Tp& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r *= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator*(const _Tp& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __y;
+      __r *= __x;
+      return __r;
+    }
+  ///@}
+
+  ///@{
+  ///  Return new complex value @a x divided by @a y.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator/(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r /= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator/(const complex<_Tp>& __x, const _Tp& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r /= __y;
+      return __r;
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator/(const _Tp& __x, const complex<_Tp>& __y)
+    {
+      complex<_Tp> __r = __x;
+      __r /= __y;
+      return __r;
+    }
+  ///@}
+
+  ///  Return @a x.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator+(const complex<_Tp>& __x)
+    { return __x; }
+
+  ///  Return complex negation of @a x.
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    operator-(const complex<_Tp>& __x)
+    { return complex<_Tp>(-__x.real(), -__x.imag()); }
+
+  ///@{
+  ///  Return true if @a x is equal to @a y.
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator==(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __x.real() == __y.real() && __x.imag() == __y.imag(); }
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator==(const complex<_Tp>& __x, const _Tp& __y)
+    { return __x.real() == __y && __x.imag() == _Tp(); }
+
+#if !(__cpp_impl_three_way_comparison >= 201907L)
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator==(const _Tp& __x, const complex<_Tp>& __y)
+    { return __x == __y.real() && _Tp() == __y.imag(); }
+  ///@}
+
+  ///@{
+  ///  Return false if @a x is equal to @a y.
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator!=(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __x.real() != __y.real() || __x.imag() != __y.imag(); }
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator!=(const complex<_Tp>& __x, const _Tp& __y)
+    { return __x.real() != __y || __x.imag() != _Tp(); }
+
+  template<typename _Tp>
+    inline _GLIBCXX_CONSTEXPR bool
+    operator!=(const _Tp& __x, const complex<_Tp>& __y)
+    { return __x != __y.real() || _Tp() != __y.imag(); }
+#endif
+  ///@}
+
+  ///  Extraction operator for complex values.
+  template<typename _Tp, typename _CharT, class _Traits>
+    basic_istream<_CharT, _Traits>&
+    operator>>(basic_istream<_CharT, _Traits>& __is, complex<_Tp>& __x)
+    {
+      bool __fail = true;
+      _CharT __ch;
+      if (__is >> __ch)
+	{
+	  if (_Traits::eq(__ch, __is.widen('(')))
+	    {
+	      _Tp __u;
+	      if (__is >> __u >> __ch)
+		{
+		  const _CharT __rparen = __is.widen(')');
+		  if (_Traits::eq(__ch, __rparen))
+		    {
+		      __x = __u;
+		      __fail = false;
+		    }
+		  else if (_Traits::eq(__ch, __is.widen(',')))
+		    {
+		      _Tp __v;
+		      if (__is >> __v >> __ch)
+			{
+			  if (_Traits::eq(__ch, __rparen))
+			    {
+			      __x = complex<_Tp>(__u, __v);
+			      __fail = false;
+			    }
+			  else
+			    __is.putback(__ch);
+			}
+		    }
+		  else
+		    __is.putback(__ch);
+		}
+	    }
+	  else
+	    {
+	      __is.putback(__ch);
+	      _Tp __u;
+	      if (__is >> __u)
+		{
+		  __x = __u;
+		  __fail = false;
+		}
+	    }
+	}
+      if (__fail)
+	__is.setstate(ios_base::failbit);
+      return __is;
+    }
+
+  ///  Insertion operator for complex values.
+  template<typename _Tp, typename _CharT, class _Traits>
+    basic_ostream<_CharT, _Traits>&
+    operator<<(basic_ostream<_CharT, _Traits>& __os, const complex<_Tp>& __x)
+    {
+      basic_ostringstream<_CharT, _Traits> __s;
+      __s.flags(__os.flags());
+      __s.imbue(__os.getloc());
+      __s.precision(__os.precision());
+      __s << '(' << __x.real() << ',' << __x.imag() << ')';
+      return __os << __s.str();
+    }
+
+  // Values
+#if __cplusplus >= 201103L
+  template<typename _Tp>
+    constexpr _Tp
+    real(const complex<_Tp>& __z)
+    { return __z.real(); }
+
+  template<typename _Tp>
+    constexpr _Tp
+    imag(const complex<_Tp>& __z)
+    { return __z.imag(); }
+#else
+  template<typename _Tp>
+    inline _Tp&
+    real(complex<_Tp>& __z)
+    { return __z.real(); }
+
+  template<typename _Tp>
+    inline const _Tp&
+    real(const complex<_Tp>& __z)
+    { return __z.real(); }
+
+  template<typename _Tp>
+    inline _Tp&
+    imag(complex<_Tp>& __z)
+    { return __z.imag(); }
+
+  template<typename _Tp>
+    inline const _Tp&
+    imag(const complex<_Tp>& __z)
+    { return __z.imag(); }
+#endif
+
+  // 26.2.7/3 abs(__z):  Returns the magnitude of __z.
+  template<typename _Tp>
+    inline _Tp
+    __complex_abs(const complex<_Tp>& __z)
+    {
+      _Tp __x = __z.real();
+      _Tp __y = __z.imag();
+      const _Tp __s = std::max(abs(__x), abs(__y));
+      if (__s == _Tp())  // well ...
+        return __s;
+      __x /= __s;
+      __y /= __s;
+      return __s * sqrt(__x * __x + __y * __y);
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline float
+  __complex_abs(__complex__ float __z) { return __builtin_cabsf(__z); }
+
+  inline double
+  __complex_abs(__complex__ double __z) { return __builtin_cabs(__z); }
+
+  inline long double
+  __complex_abs(const __complex__ long double& __z)
+  { return __builtin_cabsl(__z); }
+
+  template<typename _Tp>
+    inline _Tp
+    abs(const complex<_Tp>& __z) { return __complex_abs(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline _Tp
+    abs(const complex<_Tp>& __z) { return __complex_abs(__z); }
+#endif
+
+
+  // 26.2.7/4: arg(__z): Returns the phase angle of __z.
+  template<typename _Tp>
+    inline _Tp
+    __complex_arg(const complex<_Tp>& __z)
+    { return  atan2(__z.imag(), __z.real()); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline float
+  __complex_arg(__complex__ float __z) { return __builtin_cargf(__z); }
+
+  inline double
+  __complex_arg(__complex__ double __z) { return __builtin_carg(__z); }
+
+  inline long double
+  __complex_arg(const __complex__ long double& __z)
+  { return __builtin_cargl(__z); }
+
+  template<typename _Tp>
+    inline _Tp
+    arg(const complex<_Tp>& __z) { return __complex_arg(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline _Tp
+    arg(const complex<_Tp>& __z) { return __complex_arg(__z); }
+#endif
+
+  // 26.2.7/5: norm(__z) returns the squared magnitude of __z.
+  //     As defined, norm() is -not- a norm is the common mathematical
+  //     sense used in numerics.  The helper class _Norm_helper<> tries to
+  //     distinguish between builtin floating point and the rest, so as
+  //     to deliver an answer as close as possible to the real value.
+  template<bool>
+    struct _Norm_helper
+    {
+      template<typename _Tp>
+        static inline _GLIBCXX20_CONSTEXPR _Tp _S_do_it(const complex<_Tp>& __z)
+        {
+          const _Tp __x = __z.real();
+          const _Tp __y = __z.imag();
+          return __x * __x + __y * __y;
         }
-#endif // ^^^ !defined(__AVX2__) ^^^
-
-#elif defined(_FMP_USING_ARM64_INTRINSICS)
-        // https://docs.microsoft.com/en-us/cpp/build/arm64-windows-abi-conventions?view=vs-2019#base-requirements
-        // Both floating-point and NEON support are presumed to be present in hardware.
-        return {_Prod0, _Sqr_error_arm64_neon(_Xval, _Prod0)};
-#else // ^^^ defined(_FMP_USING_ARM64_INTRINSICS) / not using intrinsics vvv
-        return {_Prod0, _Sqr_error_fallback(_Xval, _Prod0)};
-#endif // ^^^ not using intrinsics ^^^
-    }
-} // namespace _Float_multi_prec
-#pragma float_control(pop)
-
-#undef _FMP_USING_X86_X64_INTRINSICS
-#undef _FMP_USING_ARM64_INTRINSICS
-
-#define _FMP ::std::_Float_multi_prec::
-
-// implements numerical algorithms for <complex>
-namespace _Math_algorithms {
-    // TRANSITION: sqrt() isn't constexpr
-    // _Hypot_leg_huge = _Ty{0.5} * _STD sqrt((_STD numeric_limits<_Ty>::max)());
-    // _Hypot_leg_tiny = _STD sqrt(_Ty{2.0} * (_STD numeric_limits<_Ty>::min)() / _STD numeric_limits<_Ty>::epsilon());
-    template <class _Ty>
-    struct _Hypot_leg_huge_helper {
-        static constexpr _Ty value{6.703903964971298e+153};
     };
-    template <>
-    struct _Hypot_leg_huge_helper<float> {
-        static constexpr float value{9.2233715e+18f};
+
+  template<>
+    struct _Norm_helper<true>
+    {
+      template<typename _Tp>
+        static inline _GLIBCXX20_CONSTEXPR _Tp _S_do_it(const complex<_Tp>& __z)
+        {
+          //_Tp __res = std::abs(__z);
+          //return __res * __res;
+          const _Tp __x = __z.real();
+          const _Tp __y = __z.imag();
+          return __x * __x + __y * __y;
+        }
     };
-    template <class _Ty>
-    _INLINE_VAR constexpr _Ty _Hypot_leg_huge = _Hypot_leg_huge_helper<_Ty>::value;
 
-    template <class _Ty>
-    struct _Hypot_leg_tiny_helper {
-        static constexpr _Ty value{1.4156865331029228e-146};
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR _Tp
+    norm(const complex<_Tp>& __z)
+    {
+      return _Norm_helper<__is_floating<_Tp>::__value
+	&& !_GLIBCXX_FAST_MATH>::_S_do_it(__z);
+    }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    polar(const _Tp& __rho, const _Tp& __theta)
+    {
+      __glibcxx_assert( __rho >= 0 );
+      return complex<_Tp>(__rho * cos(__theta), __rho * sin(__theta));
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR complex<_Tp>
+    conj(const complex<_Tp>& __z)
+    { return complex<_Tp>(__z.real(), -__z.imag()); }
+
+  // Transcendentals
+
+  // 26.2.8/1 cos(__z):  Returns the cosine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_cos(const complex<_Tp>& __z)
+    {
+      const _Tp __x = __z.real();
+      const _Tp __y = __z.imag();
+      return complex<_Tp>(cos(__x) * cosh(__y), -sin(__x) * sinh(__y));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_cos(__complex__ float __z) { return __builtin_ccosf(__z); }
+
+  inline __complex__ double
+  __complex_cos(__complex__ double __z) { return __builtin_ccos(__z); }
+
+  inline __complex__ long double
+  __complex_cos(const __complex__ long double& __z)
+  { return __builtin_ccosl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    cos(const complex<_Tp>& __z) { return __complex_cos(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    cos(const complex<_Tp>& __z) { return __complex_cos(__z); }
+#endif
+
+  // 26.2.8/2 cosh(__z): Returns the hyperbolic cosine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_cosh(const complex<_Tp>& __z)
+    {
+      const _Tp __x = __z.real();
+      const _Tp __y = __z.imag();
+      return complex<_Tp>(cosh(__x) * cos(__y), sinh(__x) * sin(__y));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_cosh(__complex__ float __z) { return __builtin_ccoshf(__z); }
+
+  inline __complex__ double
+  __complex_cosh(__complex__ double __z) { return __builtin_ccosh(__z); }
+
+  inline __complex__ long double
+  __complex_cosh(const __complex__ long double& __z)
+  { return __builtin_ccoshl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    cosh(const complex<_Tp>& __z) { return __complex_cosh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    cosh(const complex<_Tp>& __z) { return __complex_cosh(__z); }
+#endif
+
+  // 26.2.8/3 exp(__z): Returns the complex base e exponential of x
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_exp(const complex<_Tp>& __z)
+    { return std::polar<_Tp>(exp(__z.real()), __z.imag()); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_exp(__complex__ float __z) { return __builtin_cexpf(__z); }
+
+  inline __complex__ double
+  __complex_exp(__complex__ double __z) { return __builtin_cexp(__z); }
+
+  inline __complex__ long double
+  __complex_exp(const __complex__ long double& __z)
+  { return __builtin_cexpl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    exp(const complex<_Tp>& __z) { return __complex_exp(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    exp(const complex<_Tp>& __z) { return __complex_exp(__z); }
+#endif
+
+  // 26.2.8/5 log(__z): Returns the natural complex logarithm of __z.
+  //                    The branch cut is along the negative axis.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_log(const complex<_Tp>& __z)
+    { return complex<_Tp>(log(std::abs(__z)), std::arg(__z)); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_log(__complex__ float __z) { return __builtin_clogf(__z); }
+
+  inline __complex__ double
+  __complex_log(__complex__ double __z) { return __builtin_clog(__z); }
+
+  inline __complex__ long double
+  __complex_log(const __complex__ long double& __z)
+  { return __builtin_clogl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    log(const complex<_Tp>& __z) { return __complex_log(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    log(const complex<_Tp>& __z) { return __complex_log(__z); }
+#endif
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    log10(const complex<_Tp>& __z)
+    { return std::log(__z) / log(_Tp(10.0)); }
+
+  // 26.2.8/10 sin(__z): Returns the sine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_sin(const complex<_Tp>& __z)
+    {
+      const _Tp __x = __z.real();
+      const _Tp __y = __z.imag();
+      return complex<_Tp>(sin(__x) * cosh(__y), cos(__x) * sinh(__y));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sin(__complex__ float __z) { return __builtin_csinf(__z); }
+
+  inline __complex__ double
+  __complex_sin(__complex__ double __z) { return __builtin_csin(__z); }
+
+  inline __complex__ long double
+  __complex_sin(const __complex__ long double& __z)
+  { return __builtin_csinl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    sin(const complex<_Tp>& __z) { return __complex_sin(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sin(const complex<_Tp>& __z) { return __complex_sin(__z); }
+#endif
+
+  // 26.2.8/11 sinh(__z): Returns the hyperbolic sine of __z.
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_sinh(const complex<_Tp>& __z)
+    {
+      const _Tp __x = __z.real();
+      const _Tp  __y = __z.imag();
+      return complex<_Tp>(sinh(__x) * cos(__y), cosh(__x) * sin(__y));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sinh(__complex__ float __z) { return __builtin_csinhf(__z); }
+
+  inline __complex__ double
+  __complex_sinh(__complex__ double __z) { return __builtin_csinh(__z); }
+
+  inline __complex__ long double
+  __complex_sinh(const __complex__ long double& __z)
+  { return __builtin_csinhl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    sinh(const complex<_Tp>& __z) { return __complex_sinh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sinh(const complex<_Tp>& __z) { return __complex_sinh(__z); }
+#endif
+
+  // 26.2.8/13 sqrt(__z): Returns the complex square root of __z.
+  //                     The branch cut is on the negative axis.
+  template<typename _Tp>
+    complex<_Tp>
+    __complex_sqrt(const complex<_Tp>& __z)
+    {
+      _Tp __x = __z.real();
+      _Tp __y = __z.imag();
+
+      if (__x == _Tp())
+        {
+          _Tp __t = sqrt(abs(__y) / 2);
+          return complex<_Tp>(__t, __y < _Tp() ? -__t : __t);
+        }
+      else
+        {
+          _Tp __t = sqrt(2 * (std::abs(__z) + abs(__x)));
+          _Tp __u = __t / 2;
+          return __x > _Tp()
+            ? complex<_Tp>(__u, __y / __t)
+            : complex<_Tp>(abs(__y) / __t, __y < _Tp() ? -__u : __u);
+        }
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_sqrt(__complex__ float __z) { return __builtin_csqrtf(__z); }
+
+  inline __complex__ double
+  __complex_sqrt(__complex__ double __z) { return __builtin_csqrt(__z); }
+
+  inline __complex__ long double
+  __complex_sqrt(const __complex__ long double& __z)
+  { return __builtin_csqrtl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    sqrt(const complex<_Tp>& __z) { return __complex_sqrt(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    sqrt(const complex<_Tp>& __z) { return __complex_sqrt(__z); }
+#endif
+
+  // 26.2.8/14 tan(__z):  Return the complex tangent of __z.
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_tan(const complex<_Tp>& __z)
+    { return std::sin(__z) / std::cos(__z); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_tan(__complex__ float __z) { return __builtin_ctanf(__z); }
+
+  inline __complex__ double
+  __complex_tan(__complex__ double __z) { return __builtin_ctan(__z); }
+
+  inline __complex__ long double
+  __complex_tan(const __complex__ long double& __z)
+  { return __builtin_ctanl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    tan(const complex<_Tp>& __z) { return __complex_tan(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    tan(const complex<_Tp>& __z) { return __complex_tan(__z); }
+#endif
+
+
+  // 26.2.8/15 tanh(__z):  Returns the hyperbolic tangent of __z.
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_tanh(const complex<_Tp>& __z)
+    { return std::sinh(__z) / std::cosh(__z); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_tanh(__complex__ float __z) { return __builtin_ctanhf(__z); }
+
+  inline __complex__ double
+  __complex_tanh(__complex__ double __z) { return __builtin_ctanh(__z); }
+
+  inline __complex__ long double
+  __complex_tanh(const __complex__ long double& __z)
+  { return __builtin_ctanhl(__z); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    tanh(const complex<_Tp>& __z) { return __complex_tanh(__z.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    tanh(const complex<_Tp>& __z) { return __complex_tanh(__z); }
+#endif
+
+
+  // 26.2.8/9  pow(__x, __y): Returns the complex power base of __x
+  //                          raised to the __y-th power.  The branch
+  //                          cut is on the negative axis.
+  template<typename _Tp>
+    complex<_Tp>
+    __complex_pow_unsigned(complex<_Tp> __x, unsigned __n)
+    {
+      complex<_Tp> __y = __n % 2 ? __x : complex<_Tp>(1);
+
+      while (__n >>= 1)
+        {
+          __x *= __x;
+          if (__n % 2)
+            __y *= __x;
+        }
+
+      return __y;
+    }
+
+  // In C++11 mode we used to implement the resolution of
+  // DR 844. complex pow return type is ambiguous.
+  // thus the following overload was disabled in that mode.  However, doing
+  // that causes all sorts of issues, see, for example:
+  //   http://gcc.gnu.org/ml/libstdc++/2013-01/msg00058.html
+  // and also PR57974.
+  template<typename _Tp>
+    inline complex<_Tp>
+    pow(const complex<_Tp>& __z, int __n)
+    {
+      return __n < 0
+	? complex<_Tp>(1) / std::__complex_pow_unsigned(__z, -(unsigned)__n)
+        : std::__complex_pow_unsigned(__z, __n);
+    }
+
+  template<typename _Tp>
+    complex<_Tp>
+    pow(const complex<_Tp>& __x, const _Tp& __y)
+    {
+#if ! _GLIBCXX_USE_C99_COMPLEX
+      if (__x == _Tp())
+	return _Tp();
+#endif
+      if (__x.imag() == _Tp() && __x.real() > _Tp())
+        return pow(__x.real(), __y);
+
+      complex<_Tp> __t = std::log(__x);
+      return std::polar<_Tp>(exp(__y * __t.real()), __y * __t.imag());
+    }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    __complex_pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __x == _Tp() ? _Tp() : std::exp(__y * std::log(__x)); }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline __complex__ float
+  __complex_pow(__complex__ float __x, __complex__ float __y)
+  { return __builtin_cpowf(__x, __y); }
+
+  inline __complex__ double
+  __complex_pow(__complex__ double __x, __complex__ double __y)
+  { return __builtin_cpow(__x, __y); }
+
+  inline __complex__ long double
+  __complex_pow(const __complex__ long double& __x,
+		const __complex__ long double& __y)
+  { return __builtin_cpowl(__x, __y); }
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __complex_pow(__x.__rep(), __y.__rep()); }
+#else
+  template<typename _Tp>
+    inline complex<_Tp>
+    pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
+    { return __complex_pow(__x, __y); }
+#endif
+
+  template<typename _Tp>
+    inline complex<_Tp>
+    pow(const _Tp& __x, const complex<_Tp>& __y)
+    {
+      return __x > _Tp() ? std::polar<_Tp>(pow(__x, __y.real()),
+					   __y.imag() * log(__x))
+	                 : std::pow(complex<_Tp>(__x), __y);
+    }
+
+  /// 26.2.3  complex specializations
+  /// complex<float> specialization
+  template<>
+    class complex<float>
+    {
+    public:
+      typedef float value_type;
+      typedef __complex__ float _ComplexT;
+
+      _GLIBCXX_CONSTEXPR complex(_ComplexT __z) : _M_value(__z) { }
+
+      _GLIBCXX_CONSTEXPR complex(float __r = 0.0f, float __i = 0.0f)
+#if __cplusplus >= 201103L
+      : _M_value{ __r, __i } { }
+#else
+      {
+	__real__ _M_value = __r;
+	__imag__ _M_value = __i;
+      }
+#endif
+
+      explicit _GLIBCXX_CONSTEXPR complex(const complex<double>&);
+      explicit _GLIBCXX_CONSTEXPR complex(const complex<long double>&);
+
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr float
+      real() const { return __real__ _M_value; }
+
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr float
+      imag() const { return __imag__ _M_value; }
+#else
+      float&
+      real() { return __real__ _M_value; }
+
+      const float&
+      real() const { return __real__ _M_value; }
+
+      float&
+      imag() { return __imag__ _M_value; }
+
+      const float&
+      imag() const { return __imag__ _M_value; }
+#endif
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      _GLIBCXX20_CONSTEXPR void
+      real(float __val) { __real__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR void
+      imag(float __val) { __imag__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator=(float __f)
+      {
+	_M_value = __f;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator+=(float __f)
+      {
+	_M_value += __f;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator-=(float __f)
+      {
+	_M_value -= __f;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator*=(float __f)
+      {
+	_M_value *= __f;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator/=(float __f)
+      {
+	_M_value /= __f;
+	return *this;
+      }
+
+      // Let the compiler synthesize the copy and assignment
+      // operator.  It always does a pretty good job.
+#if __cplusplus >= 201103L
+      _GLIBCXX14_CONSTEXPR complex& operator=(const complex&) = default;
+#endif
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator=(const complex<_Tp>&  __z)
+	{
+	  __real__ _M_value = __z.real();
+	  __imag__ _M_value = __z.imag();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator+=(const complex<_Tp>& __z)
+	{
+	  _M_value += __z.__rep();
+	  return *this;
+	}
+
+      template<class _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator-=(const complex<_Tp>& __z)
+	{
+	  _M_value -= __z.__rep();
+	  return *this;
+	}
+
+      template<class _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator*=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value *= __t;
+	  return *this;
+	}
+
+      template<class _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator/=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value /= __t;
+	  return *this;
+	}
+
+      _GLIBCXX_CONSTEXPR _ComplexT __rep() const { return _M_value; }
+
+    private:
+      _ComplexT _M_value;
     };
-    template <>
-    struct _Hypot_leg_tiny_helper<float> {
-        static constexpr float value{4.440892e-16f};
+
+  /// 26.2.3  complex specializations
+  /// complex<double> specialization
+  template<>
+    class complex<double>
+    {
+    public:
+      typedef double value_type;
+      typedef __complex__ double _ComplexT;
+
+      _GLIBCXX_CONSTEXPR complex(_ComplexT __z) : _M_value(__z) { }
+
+      _GLIBCXX_CONSTEXPR complex(double __r = 0.0, double __i = 0.0)
+#if __cplusplus >= 201103L
+      : _M_value{ __r, __i } { }
+#else
+      {
+	__real__ _M_value = __r;
+	__imag__ _M_value = __i;
+      }
+#endif
+
+      _GLIBCXX_CONSTEXPR complex(const complex<float>& __z)
+      : _M_value(__z.__rep()) { }
+
+      explicit _GLIBCXX_CONSTEXPR complex(const complex<long double>&);
+
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr double
+      real() const { return __real__ _M_value; }
+
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr double
+      imag() const { return __imag__ _M_value; }
+#else
+      double&
+      real() { return __real__ _M_value; }
+
+      const double&
+      real() const { return __real__ _M_value; }
+
+      double&
+      imag() { return __imag__ _M_value; }
+
+      const double&
+      imag() const { return __imag__ _M_value; }
+#endif
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      _GLIBCXX20_CONSTEXPR void
+      real(double __val) { __real__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR void
+      imag(double __val) { __imag__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator=(double __d)
+      {
+	_M_value = __d;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator+=(double __d)
+      {
+	_M_value += __d;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator-=(double __d)
+      {
+	_M_value -= __d;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator*=(double __d)
+      {
+	_M_value *= __d;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator/=(double __d)
+      {
+	_M_value /= __d;
+	return *this;
+      }
+
+      // The compiler will synthesize this, efficiently.
+#if __cplusplus >= 201103L
+      _GLIBCXX14_CONSTEXPR complex& operator=(const complex&) = default;
+#endif
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator=(const complex<_Tp>& __z)
+	{
+	  _M_value = __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator+=(const complex<_Tp>& __z)
+	{
+	  _M_value += __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator-=(const complex<_Tp>& __z)
+	{
+	  _M_value -= __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator*=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value *= __t;
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator/=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value /= __t;
+	  return *this;
+	}
+
+      _GLIBCXX_CONSTEXPR _ComplexT __rep() const { return _M_value; }
+
+    private:
+      _ComplexT _M_value;
     };
-    template <class _Ty>
-    _INLINE_VAR constexpr _Ty _Hypot_leg_tiny = _Hypot_leg_tiny_helper<_Ty>::value;
-
-    template <class _Ty>
-    _NODISCARD _Ty _Norm_minus_one(const _Ty _Xval, const _Ty _Yval) noexcept {
-        // requires |_Xval| >= |_Yval| and 0.5 <= |_Xval| < 2^12
-        // returns _Xval * _Xval + _Yval * _Yval - 1
-        const _FMP _Fmp_t<_Ty, 2> _Xsqr    = _FMP _Sqr_x2(_Xval);
-        const _FMP _Fmp_t<_Ty, 2> _Ysqr    = _FMP _Sqr_x2(_Yval);
-        const _FMP _Fmp_t<_Ty, 2> _Xsqr_m1 = _FMP _Add_small_x2(_Ty{-1.0}, _Xsqr);
-        return _Add_x1(_Xsqr_m1, _Ysqr);
-    }
-
-    _NODISCARD inline float _Norm_minus_one(const float _Xval, const float _Yval) noexcept {
-        const auto _Dx = static_cast<double>(_Xval);
-        const auto _Dy = static_cast<double>(_Yval);
-        return static_cast<float>((_Dx * _Dx - 1.0) + _Dy * _Dy);
-    }
-
-    // TRANSITION: CRT log1p can be inaccurate for tiny inputs under directed rounding modes
-    template <class _Ty>
-    _NODISCARD _Ty _Logp1(const _Ty _Xval) { // returns log(1 + _Xval)
-        static_assert(is_floating_point_v<_Ty>, "_Ty must be floating-point");
-
-        if (_Is_nan(_Xval)) { // NaN
-            return _Xval + _Xval; // raise FE_INVALID if _Xval is a signaling NaN
-        }
-
-        if (_Xval <= _Ty{-0.5} || _Ty{2.0} <= _Xval) { // naive formula is moderately accurate
-            if (_Xval == (numeric_limits<_Ty>::max)()) { // avoid overflow
-                return _STD log(_Xval);
-            }
-
-            return _STD log(_Ty{1.0} + _Xval);
-        }
-
-        const _Ty _Xabs = _Float_abs(_Xval);
-        if (_Xabs < numeric_limits<_Ty>::epsilon()) { // zero or tiny
-            if (_Xval == _Ty{0.0}) {
-                return _Xval;
-            }
-
-            // honor rounding mode, raise FE_INEXACT
-            return _Xval - _Ty{0.5} * _Xval * _Xval;
-        }
-
-        // compute log(1 + _Xval) with fixup for small _Xval
-        const _FMP _Fmp_t<_Ty, 2> _Xp1 = _FMP _Add_small_x2(_Ty{1.0}, _Xval);
-        return _STD log(_Xp1._Val0) + _Xp1._Val1 / _Xp1._Val0;
-    }
-
-    template <class _Ty>
-    _NODISCARD _Ty _Log_hypot(const _Ty _Xval, const _Ty _Yval) noexcept { // returns log(hypot(_Xval, _Yval))
-        static_assert(is_floating_point_v<_Ty>, "_Ty must be floating-point");
-
-        if (!_Is_finite(_Xval) || !_Is_finite(_Yval)) { // Inf or NaN
-            // raise FE_INVALID and return NaN if at least one of them is a signaling NaN
-            if (_Is_signaling_nan(_Xval) || _Is_signaling_nan(_Yval)) {
-                return _Xval + _Yval;
-            }
-
-            // return +Inf if at least one of them is an infinity, even when the other is a quiet NaN
-            if (_Is_inf(_Xval)) {
-                return _Float_abs(_Xval);
-            }
-
-            if (_Is_inf(_Yval)) {
-                return _Float_abs(_Yval);
-            }
-
-            // at least one of them is a quiet NaN, and the other is not an infinity
-            return _Xval + _Yval;
-        }
-
-        _Ty _Av = _Float_abs(_Xval);
-        _Ty _Bv = _Float_abs(_Yval);
-
-        if (_Av < _Bv) { // ensure that _Bv <= _Av
-            _STD swap(_Av, _Bv);
-        }
-
-        if (_Bv == 0) {
-            return _STD log(_Av);
-        }
-
-        if (_Hypot_leg_tiny<_Ty> < _Av && _Av < _Hypot_leg_huge<_Ty>) { // no overflow or harmful underflow
-            constexpr _Ty _Norm_small = _Ty{0.5};
-            constexpr _Ty _Norm_big   = _Ty{3.0};
-
-            const _Ty _Bv_sqr = _Bv * _Bv;
-
-            if (_Av == _Ty{1.0}) { // correctly return +0 when _Av == 1 and _Bv * _Bv underflows
-                                   // _Norm_minus_one(_Av, _Bv) could return -0 under FE_DOWNWARD rounding mode
-                return _Logp1(_Bv_sqr) * _Ty{0.5};
-            }
-
-            const _Ty _Norm = _Av * _Av + _Bv_sqr;
-
-            if (_Norm_small < _Norm && _Norm < _Norm_big) { // avoid catastrophic cancellation
-                return _Logp1(_Norm_minus_one(_Av, _Bv)) * _Ty{0.5};
-            } else {
-                return _STD log(_Norm) * _Ty{0.5};
-            }
-        } else { // use 1 1/2 precision to preserve bits
-            constexpr _Ty _Cm = _Ty{22713.0L / 32768.0L};
-            constexpr _Ty _Cl = _Ty{1.4286068203094172321214581765680755e-6L};
-
-            const int _Exponent      = _STD ilogb(_Av);
-            const _Ty _Av_scaled     = _STD scalbn(_Av, -_Exponent);
-            const _Ty _Bv_scaled     = _STD scalbn(_Bv, -_Exponent);
-            const _Ty _Bv_scaled_sqr = _Bv_scaled * _Bv_scaled;
-            const _Ty _Norm_scaled   = _Av_scaled * _Av_scaled + _Bv_scaled_sqr;
-            const _Ty _Real_shifted  = _STD log(_Norm_scaled) * _Ty{0.5};
-            const auto _Fexponent    = static_cast<_Ty>(_Exponent);
-            return (_Real_shifted + _Fexponent * _Cl) + _Fexponent * _Cm;
-        }
-    }
-} // namespace _Math_algorithms
-
-#undef _FMP
-
-using _Dcomplex_value = _CSTD _C_double_complex;
-using _Fcomplex_value = _CSTD _C_float_complex;
-using _Lcomplex_value = _CSTD _C_ldouble_complex;
-
-template <class _Ty>
-class complex;
-template <>
-class complex<float>;
-template <>
-class complex<double>;
-template <>
-class complex<long double>;
-
-// CLASS TEMPLATE _Ctraits
-template <class _Ty>
-class _Ctraits {
-public:
-    static constexpr _Ty _Flt_eps() { // get epsilon
-        return numeric_limits<_Ty>::epsilon();
-    }
-
-    static constexpr _Ty _Flt_max() {
-        return (numeric_limits<_Ty>::max)();
-    }
-
-    static constexpr _Ty _Flt_norm_min() {
-        return (numeric_limits<_Ty>::min)() > 0 ? (numeric_limits<_Ty>::min)() : 0;
-    }
-
-    static _Ty _Abs(_Ty _Left) {
-        return static_cast<_Ty>(_Signbit(_Left) ? -_Left : _Left);
-    }
-
-    static _Ty _Cosh(_Ty _Left, _Ty _Right) { // return cosh(_Left) * _Right
-        return static_cast<_Ty>(_CSTD _Cosh(static_cast<double>(_Left), static_cast<double>(_Right)));
-    }
-
-    static _Ty _Copysign(_Ty _Magnitude, _Ty _Sign) {
-        return static_cast<_Ty>(_Signbit(_Sign) ? -_Abs(_Magnitude) : _Abs(_Magnitude));
-    }
-
-    static short _Exp(_Ty* _Pleft, _Ty _Right, short _Exponent) { // compute exp(*_Pleft) * _Right * 2 ^ _Exponent
-        double _Tmp = static_cast<double>(*_Pleft);
-        short _Ans  = _CSTD _Exp(&_Tmp, static_cast<double>(_Right), _Exponent);
-        *_Pleft     = static_cast<_Ty>(_Tmp);
-        return _Ans;
-    }
-
-    static constexpr _Ty _Infv() { // return infinity
-        return numeric_limits<_Ty>::infinity();
-    }
-
-    static bool _Isinf(_Ty _Left) { // test for infinity
-        const auto _Tmp  = static_cast<double>(_Left);
-        const auto _Uint = _Bit_cast<uint64_t>(_Tmp);
-        return (_Uint & 0x7fffffffffffffffU) == 0x7ff0000000000000U;
-    }
-
-    static _CONSTEXPR20 bool _Isnan(_Ty _Left) {
-        const auto _Tmp  = static_cast<double>(_Left);
-        const auto _Uint = _Bit_cast<uint64_t>(_Tmp);
-        return (_Uint & 0x7fffffffffffffffU) > 0x7ff0000000000000U;
-    }
-
-    static constexpr _Ty _Nanv() { // return NaN
-        return numeric_limits<_Ty>::quiet_NaN();
-    }
-
-    static bool _Signbit(_Ty _Left) {
-        return (_STD signbit)(static_cast<double>(_Left));
-    }
-
-    static _Ty _Sinh(_Ty _Left, _Ty _Right) { // return sinh(_Left) * _Right
-        return static_cast<_Ty>(_CSTD _Sinh(static_cast<double>(_Left), static_cast<double>(_Right)));
-    }
-
-    static _Ty asinh(_Ty _Left) {
-        if (_Left == 0 || _Isnan(_Left) || _Isinf(_Left)) {
-            return _Left;
-        }
-
-        constexpr _Ty _Ln2 = 0.69314718055994530941723212145817658L;
-
-        const _Ty _Old_left = _Left;
-        _Ty _Ans;
-
-        _Left = _Abs(_Left);
-
-        if (_Left < 2 / _Flt_eps()) {
-            _Ans = log1p(_Left + _Left * _Left / (1 + sqrt(_Left * _Left + 1)));
-        } else {
-            _Ans = log(_Left) + _Ln2;
-        }
-
-        return _Copysign(_Ans, _Old_left);
-    }
-
-    static _Ty atan2(_Ty _Yval, _Ty _Xval) { // return atan(_Yval / _Xval)
-        return static_cast<_Ty>(_CSTD atan2(static_cast<double>(_Yval), static_cast<double>(_Xval)));
-    }
-
-    static _Ty cos(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD cos(static_cast<double>(_Left)));
-    }
-
-    static _Ty exp(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD exp(static_cast<double>(_Left)));
-    }
-
-    static _Ty ldexp(_Ty _Left, int _Exponent) { // return _Left * 2 ^ _Exponent
-        return static_cast<_Ty>(_CSTD ldexp(static_cast<double>(_Left), _Exponent));
-    }
-
-    static _Ty log(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD log(static_cast<double>(_Left)));
-    }
-
-    static _Ty log1p(_Ty _Left) { // return log(1 + _Left)
-        if (_Left < -1) {
-            return _Nanv();
-        } else if (_Left == 0) {
-            return _Left;
-        } else { // compute log(1 + _Left) with fixup for small _Left
-            _Ty _Leftp1 = 1 + _Left;
-            return log(_Leftp1) - ((_Leftp1 - 1) - _Left) / _Leftp1;
-        }
-    }
-
-    static _Ty pow(_Ty _Left, _Ty _Right) {
-        return static_cast<_Ty>(_CSTD pow(static_cast<double>(_Left), static_cast<double>(_Right)));
-    }
-
-    static _Ty sin(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD sin(static_cast<double>(_Left)));
-    }
-
-    static _Ty sqrt(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD sqrt(static_cast<double>(_Left)));
-    }
-
-    static _Ty tan(_Ty _Left) {
-        return static_cast<_Ty>(_CSTD tan(static_cast<double>(_Left)));
-    }
-
-    static _Ty hypot(_Ty _Left, _Ty _Right) {
-        return static_cast<_Ty>(_CSTD hypot(static_cast<double>(_Left), static_cast<double>(_Right)));
-    }
-};
-
-// CLASS _Ctraits<long double>
-template <>
-class _Ctraits<long double> {
-public:
-    using _Ty = long double;
-
-    static constexpr _Ty _Flt_eps() { // get epsilon
-        return numeric_limits<long double>::epsilon();
-    }
-
-    static constexpr _Ty _Flt_max() {
-        return (numeric_limits<long double>::max)();
-    }
-
-    static constexpr _Ty _Flt_norm_min() {
-        return (numeric_limits<long double>::min)();
-    }
-
-    static _Ty _Abs(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return _CSTD fabsl(_Left);
-    }
-
-    static _Ty _Cosh(_Ty _Left, _Ty _Right) { // return cosh(_Left) * _Right
-        return _CSTD _LCosh(_Left, _Right);
-    }
-
-    static _Ty _Copysign(_Ty _Magnitude, _Ty _Sign) {
-        // testing _Sign < 0 would be incorrect when _Sign is -0.0
-        return _CSTD copysignl(_Magnitude, _Sign);
-    }
-
-    static short _Exp(_Ty* _Pleft, _Ty _Right, short _Exponent) { // compute exp(*_Pleft) * _Right * 2 ^ _Exponent
-        return _CSTD _LExp(_Pleft, _Right, _Exponent);
-    }
-
-    static constexpr _Ty _Infv() { // return infinity
-        return numeric_limits<long double>::infinity();
-    }
-
-    static bool _Isinf(_Ty _Left) { // test for infinity
-#if defined(__LDBL_DIG__) && __LDBL_DIG__ == 18
-        return _CSTD _LDtest(&_Left) == _INFCODE;
-#else // ^^^ 80-bit long double (not supported by MSVC in general, see GH-1316) / 64-bit long double vvv
-        const auto _Uint = _Bit_cast<uint64_t>(_Left);
-        return (_Uint & 0x7fffffffffffffffU) == 0x7ff0000000000000U;
-#endif // ^^^ 64-bit long double ^^^
-    }
-
-    static _CONSTEXPR20 bool _Isnan(_Ty _Left) {
-#if defined(__LDBL_DIG__) && __LDBL_DIG__ == 18
-        return _CSTD _LDtest(&_Left) == _NANCODE;
-#else // ^^^ 80-bit long double (not supported by MSVC in general, see GH-1316) / 64-bit long double vvv
-        const auto _Uint = _Bit_cast<uint64_t>(_Left);
-        return (_Uint & 0x7fffffffffffffffU) > 0x7ff0000000000000U;
-#endif // ^^^ 64-bit long double ^^^
-    }
-
-    static constexpr _Ty _Nanv() { // return NaN
-        return numeric_limits<long double>::quiet_NaN();
-    }
-
-    static bool _Signbit(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return (_STD signbit)(_Left);
-    }
-
-    static _Ty _Sinh(_Ty _Left, _Ty _Right) { // return sinh(_Left) * _Right
-        return _CSTD _LSinh(_Left, _Right);
-    }
-
-    static _Ty asinh(_Ty _Left) {
-        if (_Left == 0 || _Isnan(_Left) || _Isinf(_Left)) {
-            return _Left;
-        }
-
-        constexpr _Ty _Ln2 = 0.69314718055994530941723212145817658L;
-
-        const _Ty _Old_left = _Left;
-        _Ty _Ans;
-
-        _Left = _Abs(_Left);
-
-        if (_Left < 2 / _Flt_eps()) {
-            _Ans = log1p(_Left + _Left * _Left / (1 + sqrt(_Left * _Left + 1)));
-        } else {
-            _Ans = log(_Left) + _Ln2;
-        }
-
-        return _Copysign(_Ans, _Old_left);
-    }
-
-    static _Ty atan2(_Ty _Yval, _Ty _Xval) { // return atan(_Yval / _Xval)
-        return _CSTD atan2l(_Yval, _Xval);
-    }
-
-    static _Ty cos(_Ty _Left) {
-        return _CSTD cosl(_Left);
-    }
-
-    static _Ty exp(_Ty _Left) {
-        return _CSTD expl(_Left);
-    }
-
-    static _Ty ldexp(_Ty _Left, int _Exponent) { // return _Left * 2 ^ _Exponent
-        return _CSTD ldexpl(_Left, _Exponent);
-    }
-
-    static _Ty log(_Ty _Left) {
-        return _CSTD logl(_Left);
-    }
-
-    static _Ty log1p(_Ty _Left) { // return log(1 + _Left)
-        if (_Left < -1) {
-            return _Nanv();
-        } else if (_Left == 0) {
-            return _Left;
-        } else { // compute log(1 + _Left) with fixup for small _Left
-            _Ty _Leftp1 = 1 + _Left;
-            return log(_Leftp1) - ((_Leftp1 - 1) - _Left) / _Leftp1;
-        }
-    }
-
-    static _Ty pow(_Ty _Left, _Ty _Right) {
-        return _CSTD powl(_Left, _Right);
-    }
-
-    static _Ty sin(_Ty _Left) {
-        return _CSTD sinl(_Left);
-    }
-
-    static _Ty sqrt(_Ty _Left) {
-        return _CSTD sqrtl(_Left);
-    }
-
-    static _Ty tan(_Ty _Left) {
-        return _CSTD tanl(_Left);
-    }
-
-    static _Ty hypot(_Ty _Left, _Ty _Right) {
-        return _CSTD hypotl(_Left, _Right);
-    }
-};
-
-// CLASS _Ctraits<double>
-template <>
-class _Ctraits<double> {
-public:
-    using _Ty = double;
-
-    static constexpr _Ty _Flt_eps() { // get epsilon
-        return numeric_limits<double>::epsilon();
-    }
-
-    static constexpr _Ty _Flt_max() {
-        return (numeric_limits<double>::max)();
-    }
-
-    static constexpr _Ty _Flt_norm_min() {
-        return (numeric_limits<double>::min)();
-    }
-
-    static _Ty _Abs(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return _CSTD fabs(_Left);
-    }
-
-    static _Ty _Cosh(_Ty _Left, _Ty _Right) { // return cosh(_Left) * _Right
-        return _CSTD _Cosh(_Left, _Right);
-    }
-
-    static _Ty _Copysign(_Ty _Magnitude, _Ty _Sign) {
-        // testing _Sign < 0 would be incorrect when _Sign is -0.0
-        return _CSTD copysign(_Magnitude, _Sign);
-    }
-
-    static short _Exp(_Ty* _Pleft, _Ty _Right, short _Exponent) { // compute exp(*_Pleft) * _Right * 2 ^ _Exponent
-        return _CSTD _Exp(_Pleft, _Right, _Exponent);
-    }
-
-    static constexpr _Ty _Infv() { // return infinity
-        return numeric_limits<double>::infinity();
-    }
-
-    static bool _Isinf(_Ty _Left) { // test for infinity
-        const auto _Uint = _Bit_cast<uint64_t>(_Left);
-        return (_Uint & 0x7fffffffffffffffU) == 0x7ff0000000000000U;
-    }
-
-    static _CONSTEXPR20 bool _Isnan(_Ty _Left) {
-        const auto _Uint = _Bit_cast<uint64_t>(_Left);
-        return (_Uint & 0x7fffffffffffffffU) > 0x7ff0000000000000U;
-    }
-
-    static constexpr _Ty _Nanv() { // return NaN
-        return numeric_limits<double>::quiet_NaN();
-    }
-
-    static bool _Signbit(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return (_STD signbit)(_Left);
-    }
-
-    static _Ty _Sinh(_Ty _Left, _Ty _Right) { // return sinh(_Left) * _Right
-        return _CSTD _Sinh(_Left, _Right);
-    }
-
-    static _Ty asinh(_Ty _Left) {
-        if (_Isnan(_Left) || _Isinf(_Left) || _Left == 0) {
-            return _Left;
-        } else { // _Left finite nonzero
-            const _Ty _Old_left = _Left;
-            _Ty _Ans;
-
-            _Left = _Abs(_Left);
-
-            if (_Left < 2 / _Flt_eps()) {
-                _Ans = log1p(_Left + _Left * _Left / (1 + sqrt(_Left * _Left + 1)));
-            } else {
-                _Ans = log(_Left) // _Left big, compute log(_Left+_Left)
-                     + static_cast<_Ty>(0.69314718055994530941723212145817658L);
-            }
-
-            return _Copysign(_Ans, _Old_left);
-        }
-    }
-
-    static _Ty atan2(_Ty _Yval, _Ty _Xval) { // return atan(_Yval / _Xval)
-        return _CSTD atan2(_Yval, _Xval);
-    }
-
-    static _Ty cos(_Ty _Left) {
-        return _CSTD cos(_Left);
-    }
-
-    static _Ty exp(_Ty _Left) {
-        return _CSTD exp(_Left);
-    }
-
-    static _Ty ldexp(_Ty _Left, int _Exponent) { // return _Left * 2 ^ _Exponent
-        return _CSTD ldexp(_Left, _Exponent);
-    }
-
-    static _Ty log(_Ty _Left) {
-        return _CSTD log(_Left);
-    }
-
-    static _Ty log1p(_Ty _Left) { // return log(1 + _Left)
-        if (_Isnan(_Left) || _Left == 0 || (_Isinf(_Left) && 0 < _Left)) {
-            return _Left;
-        } else if (_Left < -1) {
-            return _Nanv();
-        } else if (_Left == -1) {
-            return -_Infv();
-        } else if (_Left == 0) {
-            return _Left;
-        } else { // compute log(1 + _Left) with fixup for small _Left
-            _Ty _Leftp1 = 1 + _Left;
-            return log(_Leftp1) - ((_Leftp1 - 1) - _Left) / _Leftp1;
-        }
-    }
-
-    static _Ty pow(_Ty _Left, _Ty _Right) {
-        return _CSTD pow(_Left, _Right);
-    }
-
-    static _Ty sin(_Ty _Left) {
-        return _CSTD sin(_Left);
-    }
-
-    static _Ty sqrt(_Ty _Left) {
-        return _CSTD sqrt(_Left);
-    }
-
-    static _Ty tan(_Ty _Left) {
-        return _CSTD tan(_Left);
-    }
-
-    static _Ty hypot(_Ty _Left, _Ty _Right) {
-        return _CSTD hypot(_Left, _Right);
-    }
-};
-
-// CLASS _Ctraits<float>
-template <>
-class _Ctraits<float> {
-public:
-    using _Ty = float;
-
-    static constexpr _Ty _Flt_eps() { // get epsilon
-        return numeric_limits<float>::epsilon();
-    }
-
-    static constexpr _Ty _Flt_max() {
-        return (numeric_limits<float>::max)();
-    }
-
-    static constexpr _Ty _Flt_norm_min() {
-        return (numeric_limits<float>::min)();
-    }
-
-    static _Ty _Abs(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return _CSTD fabsf(_Left);
-    }
-
-    static _Ty _Cosh(_Ty _Left, _Ty _Right) { // return cosh(_Left) * _Right
-        return _CSTD _FCosh(_Left, _Right);
-    }
-
-    static _Ty _Copysign(_Ty _Magnitude, _Ty _Sign) {
-        // testing _Sign < 0 would be incorrect when _Sign is -0.0
-        return _CSTD copysignf(_Magnitude, _Sign);
-    }
-
-    static short _Exp(_Ty* _Pleft, _Ty _Right, short _Exponent) { // compute exp(*_Pleft) * _Right * 2 ^ _Exponent
-        return _CSTD _FExp(_Pleft, _Right, _Exponent);
-    }
-
-    static constexpr _Ty _Infv() { // return infinity
-        return numeric_limits<float>::infinity();
-    }
-
-    static bool _Isinf(_Ty _Left) { // test for infinity
-        const auto _Uint = _Bit_cast<uint32_t>(_Left);
-        return (_Uint & 0x7fffffffU) == 0x7f800000U;
-    }
-
-    static _CONSTEXPR20 bool _Isnan(_Ty _Left) {
-        const auto _Uint = _Bit_cast<uint32_t>(_Left);
-        return (_Uint & 0x7fffffffU) > 0x7f800000U;
-    }
-
-    static constexpr _Ty _Nanv() { // return NaN
-        return numeric_limits<float>::quiet_NaN();
-    }
-
-    static bool _Signbit(_Ty _Left) {
-        // testing _Left < 0 would be incorrect when _Left is -0.0
-        return (_STD signbit)(_Left);
-    }
-
-    static _Ty _Sinh(_Ty _Left, _Ty _Right) { // return sinh(_Left) * _Right
-        return _CSTD _FSinh(_Left, _Right);
-    }
-
-    static _Ty asinh(_Ty _Left) {
-        if (_Left == 0 || _Isnan(_Left) || _Isinf(_Left)) {
-            return _Left;
-        }
-
-        constexpr _Ty _Ln2 = 0.69314718055994530941723212145817658F;
-
-        const _Ty _Old_left = _Left;
-        _Ty _Ans;
-
-        _Left = _Abs(_Left);
-
-        if (_Left < 2 / _Flt_eps()) {
-            _Ans = log1p(_Left + _Left * _Left / (1 + sqrt(_Left * _Left + 1)));
-        } else {
-            _Ans = log(_Left) + _Ln2;
-        }
-
-        return _Copysign(_Ans, _Old_left);
-    }
-
-    static _Ty atan2(_Ty _Yval, _Ty _Xval) { // return atan(_Yval / _Xval)
-        return _CSTD atan2f(_Yval, _Xval);
-    }
-
-    static _Ty cos(_Ty _Left) {
-        return _CSTD cosf(_Left);
-    }
-
-    static _Ty exp(_Ty _Left) {
-        return _CSTD expf(_Left);
-    }
-
-    static _Ty ldexp(_Ty _Left, int _Exponent) { // return _Left * 2 ^ _Exponent
-        return _CSTD ldexpf(_Left, _Exponent);
-    }
-
-    static _Ty log(_Ty _Left) {
-        return _CSTD logf(_Left);
-    }
-
-    static _Ty log1p(_Ty _Left) { // return log(1 + _Left)
-        if (_Left < -1) {
-            return _Nanv();
-        } else if (_Left == 0) {
-            return _Left;
-        } else { // compute log(1 + _Left) with fixup for small _Left
-            _Ty _Leftp1 = 1 + _Left;
-            return log(_Leftp1) - ((_Leftp1 - 1) - _Left) / _Leftp1;
-        }
-    }
-
-    static _Ty pow(_Ty _Left, _Ty _Right) {
-        return _CSTD powf(_Left, _Right);
-    }
-
-    static _Ty sin(_Ty _Left) {
-        return _CSTD sinf(_Left);
-    }
-
-    static _Ty sqrt(_Ty _Left) {
-        return _CSTD sqrtf(_Left);
-    }
-
-    static _Ty tan(_Ty _Left) {
-        return _CSTD tanf(_Left);
-    }
-
-    static _Ty hypot(_Ty _Left, _Ty _Right) {
-        return _CSTD hypotf(_Left, _Right);
-    }
-};
-
-// STRUCT TEMPLATE _Complex_value
-template <class _Ty>
-struct _Complex_value {
-    enum { _Re = 0, _Im = 1 };
-    _Ty _Val[2];
-};
-
-// CLASS TEMPLATE _Complex_base
-template <class _Ty, class _Valbase>
-class _Complex_base : public _Valbase {
-public:
-    using _Myctraits = _Ctraits<_Ty>;
-    using value_type = _Ty;
-
-    constexpr _Complex_base(const _Ty& _Realval, const _Ty& _Imagval) : _Valbase{{_Realval, _Imagval}} {}
-
-    _CONSTEXPR20 void real(const _Ty& _Right) { // set real component
-        this->_Val[_RE] = _Right;
-    }
-
-    _CONSTEXPR20 void imag(const _Ty& _Right) { // set imaginary component
-        this->_Val[_IM] = _Right;
-    }
-
-    _NODISCARD constexpr _Ty real() const { // return real component
-        return this->_Val[_RE];
-    }
-
-    _NODISCARD constexpr _Ty imag() const { // return imaginary component
-        return this->_Val[_IM];
-    }
-
-protected:
-    template <class _Other>
-    _CONSTEXPR20 void _Add(const complex<_Other>& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] + static_cast<_Ty>(_Right.real());
-        this->_Val[_IM] = this->_Val[_IM] + static_cast<_Ty>(_Right.imag());
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 void _Sub(const complex<_Other>& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] - static_cast<_Ty>(_Right.real());
-        this->_Val[_IM] = this->_Val[_IM] - static_cast<_Ty>(_Right.imag());
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 void _Mul(const complex<_Other>& _Right) {
-        _Ty _Rightreal = static_cast<_Ty>(_Right.real());
-        _Ty _Rightimag = static_cast<_Ty>(_Right.imag());
-
-        _Ty _Tmp        = this->_Val[_RE] * _Rightreal - this->_Val[_IM] * _Rightimag;
-        this->_Val[_IM] = this->_Val[_RE] * _Rightimag + this->_Val[_IM] * _Rightreal;
-        this->_Val[_RE] = _Tmp;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 void _Div(const complex<_Other>& _Right) {
-        using _Myctraits = _Ctraits<_Ty>;
-
-        _Ty _Rightreal = static_cast<_Ty>(_Right.real());
-        _Ty _Rightimag = static_cast<_Ty>(_Right.imag());
-
-        if (_Myctraits::_Isnan(_Rightreal) || _Myctraits::_Isnan(_Rightimag)) { // set NaN result
-            this->_Val[_RE] = _Myctraits::_Nanv();
-            this->_Val[_IM] = this->_Val[_RE];
-        } else if ((_Rightimag < 0 ? -_Rightimag : +_Rightimag)
-                   < (_Rightreal < 0 ? -_Rightreal : +_Rightreal)) { // |_Right.imag()| < |_Right.real()|
-            _Ty _Wr = _Rightimag / _Rightreal;
-            _Ty _Wd = _Rightreal + _Wr * _Rightimag;
-
-            if (_Myctraits::_Isnan(_Wd) || _Wd == 0) { // set NaN result
-                this->_Val[_RE] = _Myctraits::_Nanv();
-                this->_Val[_IM] = this->_Val[_RE];
-            } else { // compute representable result
-                _Ty _Tmp        = (this->_Val[_RE] + this->_Val[_IM] * _Wr) / _Wd;
-                this->_Val[_IM] = (this->_Val[_IM] - this->_Val[_RE] * _Wr) / _Wd;
-                this->_Val[_RE] = _Tmp;
-            }
-        } else if (_Rightimag == 0) { // set NaN result
-            this->_Val[_RE] = _Myctraits::_Nanv();
-            this->_Val[_IM] = this->_Val[_RE];
-        } else { // 0 < |_Right.real()| <= |_Right.imag()|
-            _Ty _Wr = _Rightreal / _Rightimag;
-            _Ty _Wd = _Rightimag + _Wr * _Rightreal;
-
-            if (_Myctraits::_Isnan(_Wd) || _Wd == 0) { // set NaN result
-                this->_Val[_RE] = _Myctraits::_Nanv();
-                this->_Val[_IM] = this->_Val[_RE];
-            } else { // compute representable result
-                _Ty _Tmp        = (this->_Val[_RE] * _Wr + this->_Val[_IM]) / _Wd;
-                this->_Val[_IM] = (this->_Val[_IM] * _Wr - this->_Val[_RE]) / _Wd;
-                this->_Val[_RE] = _Tmp;
-            }
-        }
-    }
-};
-
-// CLASS complex<float>
-template <>
-class complex<float> : public _Complex_base<float, _Fcomplex_value> {
-public:
-    using _Ty = float;
-
-    constexpr explicit complex(const complex<double>&); // defined below
-    constexpr explicit complex(const complex<long double>&); // defined below
-
-    constexpr complex(const _Ty& _Realval = 0, const _Ty& _Imagval = 0)
-        : _Complex_base<float, _Fcomplex_value>(_Realval, _Imagval) {}
-
-    _CONSTEXPR20 complex& operator=(const _Ty& _Right) {
-        _Val[_RE] = _Right;
-        _Val[_IM] = 0;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] + _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] - _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] * _Right;
-        _Val[_IM] = _Val[_IM] * _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] / _Right;
-        _Val[_IM] = _Val[_IM] / _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const complex& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const complex& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const complex& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const complex& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator=(const complex<_Other>& _Right) {
-        _Val[_RE] = static_cast<_Ty>(_Right._Val[_RE]);
-        _Val[_IM] = static_cast<_Ty>(_Right._Val[_IM]);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator+=(const complex<_Other>& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator-=(const complex<_Other>& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator*=(const complex<_Other>& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator/=(const complex<_Other>& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-};
-
-// CLASS complex<double>
-template <>
-class complex<double> : public _Complex_base<double, _Dcomplex_value> {
-public:
-    using _Ty = double;
-
-    constexpr complex(const complex<float>&); // defined below
-    constexpr explicit complex(const complex<long double>&); // defined below
-
-    constexpr complex(const _Ty& _Realval = 0, const _Ty& _Imagval = 0)
-        : _Complex_base<double, _Dcomplex_value>(_Realval, _Imagval) {}
-
-    _CONSTEXPR20 complex& operator=(const _Ty& _Right) {
-        _Val[_RE] = _Right;
-        _Val[_IM] = 0;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] + _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] - _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] * _Right;
-        _Val[_IM] = _Val[_IM] * _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] / _Right;
-        _Val[_IM] = _Val[_IM] / _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const complex& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const complex& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const complex& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const complex& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator=(const complex<_Other>& _Right) {
-        _Val[_RE] = static_cast<_Ty>(_Right._Val[_RE]);
-        _Val[_IM] = static_cast<_Ty>(_Right._Val[_IM]);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator+=(const complex<_Other>& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator-=(const complex<_Other>& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator*=(const complex<_Other>& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator/=(const complex<_Other>& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-};
-
-// CLASS complex<long double>
-template <>
-class complex<long double> : public _Complex_base<long double, _Lcomplex_value> {
-public:
-    using _Ty = long double;
-
-    constexpr complex(const complex<float>&); // defined below
-    constexpr complex(const complex<double>&); // defined below
-
-    constexpr complex(const _Ty& _Realval = 0, const _Ty& _Imagval = 0)
-        : _Complex_base<long double, _Lcomplex_value>(_Realval, _Imagval) {}
-
-    _CONSTEXPR20 complex& operator=(const _Ty& _Right) {
-        _Val[_RE] = _Right;
-        _Val[_IM] = 0;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] + _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] - _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] * _Right;
-        _Val[_IM] = _Val[_IM] * _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const _Ty& _Right) {
-        _Val[_RE] = _Val[_RE] / _Right;
-        _Val[_IM] = _Val[_IM] / _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const complex& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const complex& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const complex& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const complex& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator=(const complex<_Other>& _Right) {
-        _Val[_RE] = static_cast<_Ty>(_Right._Val[_RE]);
-        _Val[_IM] = static_cast<_Ty>(_Right._Val[_IM]);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator+=(const complex<_Other>& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator-=(const complex<_Other>& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator*=(const complex<_Other>& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator/=(const complex<_Other>& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-};
-
-// CONSTRUCTORS FOR complex SPECIALIZATIONS
-constexpr complex<float>::complex(const complex<double>& _Right)
-    : _Complex_base<float, _Fcomplex_value>(static_cast<_Ty>(_Right.real()), static_cast<_Ty>(_Right.imag())) {}
-
-constexpr complex<float>::complex(const complex<long double>& _Right)
-    : _Complex_base<float, _Fcomplex_value>(static_cast<_Ty>(_Right.real()), static_cast<_Ty>(_Right.imag())) {}
-
-constexpr complex<double>::complex(const complex<float>& _Right)
-    : _Complex_base<double, _Dcomplex_value>(_Right.real(), _Right.imag()) {}
-
-constexpr complex<double>::complex(const complex<long double>& _Right)
-    : _Complex_base<double, _Dcomplex_value>(static_cast<_Ty>(_Right.real()), static_cast<_Ty>(_Right.imag())) {}
-
-constexpr complex<long double>::complex(const complex<float>& _Right)
-    : _Complex_base<long double, _Lcomplex_value>(_Right.real(), _Right.imag()) {}
-
-constexpr complex<long double>::complex(const complex<double>& _Right)
-    : _Complex_base<long double, _Lcomplex_value>(_Right.real(), _Right.imag()) {}
-
-// CLASS TEMPLATE complex
-template <class _Ty>
-class complex : public _Complex_base<_Ty, _Complex_value<_Ty>> {
-public:
-    using _Mybase = _Complex_base<_Ty, _Complex_value<_Ty>>;
-
-    constexpr complex(const _Ty& _Realval = _Ty(), const _Ty& _Imagval = _Ty()) : _Mybase(_Realval, _Imagval) {}
 
-    _CONSTEXPR20 complex& operator=(const _Ty& _Right) {
-        this->_Val[_RE] = _Right;
-        this->_Val[_IM] = _Ty();
-        return *this;
-    }
-
-    template <class _Other>
-    constexpr complex(const complex<_Other>& _Right)
-        : _Mybase(static_cast<_Ty>(_Right.real()), static_cast<_Ty>(_Right.imag())) {}
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator=(const complex<_Other>& _Right) {
-        this->_Val[_RE] = static_cast<_Ty>(_Right.real());
-        this->_Val[_IM] = static_cast<_Ty>(_Right.imag());
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const _Ty& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] + _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const _Ty& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] - _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const _Ty& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] * _Right;
-        this->_Val[_IM] = this->_Val[_IM] * _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const _Ty& _Right) {
-        this->_Val[_RE] = this->_Val[_RE] / _Right;
-        this->_Val[_IM] = this->_Val[_IM] / _Right;
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator+=(const complex& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator-=(const complex& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator*=(const complex& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    _CONSTEXPR20 complex& operator/=(const complex& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator+=(const complex<_Other>& _Right) {
-        this->_Add(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator-=(const complex<_Other>& _Right) {
-        this->_Sub(_Right);
-        return *this;
-    }
+  /// 26.2.3  complex specializations
+  /// complex<long double> specialization
+  template<>
+    class complex<long double>
+    {
+    public:
+      typedef long double value_type;
+      typedef __complex__ long double _ComplexT;
+
+      _GLIBCXX_CONSTEXPR complex(_ComplexT __z) : _M_value(__z) { }
+
+      _GLIBCXX_CONSTEXPR complex(long double __r = 0.0L,
+				 long double __i = 0.0L)
+#if __cplusplus >= 201103L
+      : _M_value{ __r, __i } { }
+#else
+      {
+	__real__ _M_value = __r;
+	__imag__ _M_value = __i;
+      }
+#endif
+
+      _GLIBCXX_CONSTEXPR complex(const complex<float>& __z)
+      : _M_value(__z.__rep()) { }
+
+      _GLIBCXX_CONSTEXPR complex(const complex<double>& __z)
+      : _M_value(__z.__rep()) { }
+
+#if __cplusplus >= 201103L
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr long double
+      real() const { return __real__ _M_value; }
+
+      __attribute ((__abi_tag__ ("cxx11")))
+      constexpr long double
+      imag() const { return __imag__ _M_value; }
+#else
+      long double&
+      real() { return __real__ _M_value; }
+
+      const long double&
+      real() const { return __real__ _M_value; }
+
+      long double&
+      imag() { return __imag__ _M_value; }
+
+      const long double&
+      imag() const { return __imag__ _M_value; }
+#endif
+
+      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+      // DR 387. std::complex over-encapsulated.
+      _GLIBCXX20_CONSTEXPR void
+      real(long double __val) { __real__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR void
+      imag(long double __val) { __imag__ _M_value = __val; }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator=(long double __r)
+      {
+	_M_value = __r;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator+=(long double __r)
+      {
+	_M_value += __r;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator-=(long double __r)
+      {
+	_M_value -= __r;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator*=(long double __r)
+      {
+	_M_value *= __r;
+	return *this;
+      }
+
+      _GLIBCXX20_CONSTEXPR complex&
+      operator/=(long double __r)
+      {
+	_M_value /= __r;
+	return *this;
+      }
+
+      // The compiler knows how to do this efficiently
+#if __cplusplus >= 201103L
+      _GLIBCXX14_CONSTEXPR complex& operator=(const complex&) = default;
+#endif
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+        operator=(const complex<_Tp>& __z)
+	{
+	  _M_value = __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+	operator+=(const complex<_Tp>& __z)
+	{
+	  _M_value += __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+	operator-=(const complex<_Tp>& __z)
+	{
+	  _M_value -= __z.__rep();
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+	operator*=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value *= __t;
+	  return *this;
+	}
+
+      template<typename _Tp>
+        _GLIBCXX20_CONSTEXPR complex&
+	operator/=(const complex<_Tp>& __z)
+	{
+	  const _ComplexT __t = __z.__rep();
+	  _M_value /= __t;
+	  return *this;
+	}
+
+      _GLIBCXX_CONSTEXPR _ComplexT __rep() const { return _M_value; }
+
+    private:
+      _ComplexT _M_value;
+    };
+
+  // These bits have to be at the end of this file, so that the
+  // specializations have all been defined.
+  inline _GLIBCXX_CONSTEXPR
+  complex<float>::complex(const complex<double>& __z)
+  : _M_value(__z.__rep()) { }
+
+  inline _GLIBCXX_CONSTEXPR
+  complex<float>::complex(const complex<long double>& __z)
+  : _M_value(__z.__rep()) { }
+
+  inline _GLIBCXX_CONSTEXPR
+  complex<double>::complex(const complex<long double>& __z)
+  : _M_value(__z.__rep()) { }
+
+  // Inhibit implicit instantiations for required instantiations,
+  // which are defined via explicit instantiations elsewhere.
+  // NB:  This syntax is a GNU extension.
+#if _GLIBCXX_EXTERN_TEMPLATE
+  extern template istream& operator>>(istream&, complex<float>&);
+  extern template ostream& operator<<(ostream&, const complex<float>&);
+  extern template istream& operator>>(istream&, complex<double>&);
+  extern template ostream& operator<<(ostream&, const complex<double>&);
+  extern template istream& operator>>(istream&, complex<long double>&);
+  extern template ostream& operator<<(ostream&, const complex<long double>&);
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+  extern template wistream& operator>>(wistream&, complex<float>&);
+  extern template wostream& operator<<(wostream&, const complex<float>&);
+  extern template wistream& operator>>(wistream&, complex<double>&);
+  extern template wostream& operator<<(wostream&, const complex<double>&);
+  extern template wistream& operator>>(wistream&, complex<long double>&);
+  extern template wostream& operator<<(wostream&, const complex<long double>&);
+#endif
+#endif
+
+  /// @} group complex_numbers
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  // See ext/type_traits.h for the primary template.
+  template<typename _Tp, typename _Up>
+    struct __promote_2<std::complex<_Tp>, _Up>
+    {
+    public:
+      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
+    };
+
+  template<typename _Tp, typename _Up>
+    struct __promote_2<_Tp, std::complex<_Up> >
+    {
+    public:
+      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
+    };
+
+  template<typename _Tp, typename _Up>
+    struct __promote_2<std::complex<_Tp>, std::complex<_Up> >
+    {
+    public:
+      typedef std::complex<typename __promote_2<_Tp, _Up>::__type> __type;
+    };
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+#if __cplusplus >= 201103L
+
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
+  // Forward declarations.
+  template<typename _Tp> std::complex<_Tp> acos(const std::complex<_Tp>&);
+  template<typename _Tp> std::complex<_Tp> asin(const std::complex<_Tp>&);
+  template<typename _Tp> std::complex<_Tp> atan(const std::complex<_Tp>&);
+
+  template<typename _Tp> std::complex<_Tp> acosh(const std::complex<_Tp>&);
+  template<typename _Tp> std::complex<_Tp> asinh(const std::complex<_Tp>&);
+  template<typename _Tp> std::complex<_Tp> atanh(const std::complex<_Tp>&);
+  // DR 595.
+  template<typename _Tp> _Tp               fabs(const std::complex<_Tp>&);
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    __complex_acos(const std::complex<_Tp>& __z)
+    {
+      const std::complex<_Tp> __t = std::asin(__z);
+      const _Tp __pi_2 = 1.5707963267948966192313216916397514L;
+      return std::complex<_Tp>(__pi_2 - __t.real(), -__t.imag());
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_acos(__complex__ float __z)
+  { return __builtin_cacosf(__z); }
+
+  inline __complex__ double
+  __complex_acos(__complex__ double __z)
+  { return __builtin_cacos(__z); }
+
+  inline __complex__ long double
+  __complex_acos(const __complex__ long double& __z)
+  { return __builtin_cacosl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    acos(const std::complex<_Tp>& __z)
+    { return __complex_acos(__z.__rep()); }
+#else
+  /// acos(__z) [8.1.2].
+  //  Effects:  Behaves the same as C99 function cacos, defined
+  //            in subclause 7.3.5.1.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    acos(const std::complex<_Tp>& __z)
+    { return __complex_acos(__z); }
+#endif
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    __complex_asin(const std::complex<_Tp>& __z)
+    {
+      std::complex<_Tp> __t(-__z.imag(), __z.real());
+      __t = std::asinh(__t);
+      return std::complex<_Tp>(__t.imag(), -__t.real());
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_asin(__complex__ float __z)
+  { return __builtin_casinf(__z); }
+
+  inline __complex__ double
+  __complex_asin(__complex__ double __z)
+  { return __builtin_casin(__z); }
+
+  inline __complex__ long double
+  __complex_asin(const __complex__ long double& __z)
+  { return __builtin_casinl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    asin(const std::complex<_Tp>& __z)
+    { return __complex_asin(__z.__rep()); }
+#else
+  /// asin(__z) [8.1.3].
+  //  Effects:  Behaves the same as C99 function casin, defined
+  //            in subclause 7.3.5.2.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    asin(const std::complex<_Tp>& __z)
+    { return __complex_asin(__z); }
+#endif
+
+  template<typename _Tp>
+    std::complex<_Tp>
+    __complex_atan(const std::complex<_Tp>& __z)
+    {
+      const _Tp __r2 = __z.real() * __z.real();
+      const _Tp __x = _Tp(1.0) - __r2 - __z.imag() * __z.imag();
+
+      _Tp __num = __z.imag() + _Tp(1.0);
+      _Tp __den = __z.imag() - _Tp(1.0);
+
+      __num = __r2 + __num * __num;
+      __den = __r2 + __den * __den;
+
+      return std::complex<_Tp>(_Tp(0.5) * atan2(_Tp(2.0) * __z.real(), __x),
+			       _Tp(0.25) * log(__num / __den));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_atan(__complex__ float __z)
+  { return __builtin_catanf(__z); }
+
+  inline __complex__ double
+  __complex_atan(__complex__ double __z)
+  { return __builtin_catan(__z); }
+
+  inline __complex__ long double
+  __complex_atan(const __complex__ long double& __z)
+  { return __builtin_catanl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    atan(const std::complex<_Tp>& __z)
+    { return __complex_atan(__z.__rep()); }
+#else
+  /// atan(__z) [8.1.4].
+  //  Effects:  Behaves the same as C99 function catan, defined
+  //            in subclause 7.3.5.3.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    atan(const std::complex<_Tp>& __z)
+    { return __complex_atan(__z); }
+#endif
+
+  template<typename _Tp>
+    std::complex<_Tp>
+    __complex_acosh(const std::complex<_Tp>& __z)
+    {
+      // Kahan's formula.
+      return _Tp(2.0) * std::log(std::sqrt(_Tp(0.5) * (__z + _Tp(1.0)))
+				 + std::sqrt(_Tp(0.5) * (__z - _Tp(1.0))));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_acosh(__complex__ float __z)
+  { return __builtin_cacoshf(__z); }
+
+  inline __complex__ double
+  __complex_acosh(__complex__ double __z)
+  { return __builtin_cacosh(__z); }
+
+  inline __complex__ long double
+  __complex_acosh(const __complex__ long double& __z)
+  { return __builtin_cacoshl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    acosh(const std::complex<_Tp>& __z)
+    { return __complex_acosh(__z.__rep()); }
+#else
+  /// acosh(__z) [8.1.5].
+  //  Effects:  Behaves the same as C99 function cacosh, defined
+  //            in subclause 7.3.6.1.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    acosh(const std::complex<_Tp>& __z)
+    { return __complex_acosh(__z); }
+#endif
+
+  template<typename _Tp>
+    std::complex<_Tp>
+    __complex_asinh(const std::complex<_Tp>& __z)
+    {
+      std::complex<_Tp> __t((__z.real() - __z.imag())
+			    * (__z.real() + __z.imag()) + _Tp(1.0),
+			    _Tp(2.0) * __z.real() * __z.imag());
+      __t = std::sqrt(__t);
+
+      return std::log(__t + __z);
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_asinh(__complex__ float __z)
+  { return __builtin_casinhf(__z); }
+
+  inline __complex__ double
+  __complex_asinh(__complex__ double __z)
+  { return __builtin_casinh(__z); }
+
+  inline __complex__ long double
+  __complex_asinh(const __complex__ long double& __z)
+  { return __builtin_casinhl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    asinh(const std::complex<_Tp>& __z)
+    { return __complex_asinh(__z.__rep()); }
+#else
+  /// asinh(__z) [8.1.6].
+  //  Effects:  Behaves the same as C99 function casin, defined
+  //            in subclause 7.3.6.2.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    asinh(const std::complex<_Tp>& __z)
+    { return __complex_asinh(__z); }
+#endif
+
+  template<typename _Tp>
+    std::complex<_Tp>
+    __complex_atanh(const std::complex<_Tp>& __z)
+    {
+      const _Tp __i2 = __z.imag() * __z.imag();
+      const _Tp __x = _Tp(1.0) - __i2 - __z.real() * __z.real();
+
+      _Tp __num = _Tp(1.0) + __z.real();
+      _Tp __den = _Tp(1.0) - __z.real();
+
+      __num = __i2 + __num * __num;
+      __den = __i2 + __den * __den;
+
+      return std::complex<_Tp>(_Tp(0.25) * (log(__num) - log(__den)),
+			       _Tp(0.5) * atan2(_Tp(2.0) * __z.imag(), __x));
+    }
+
+#if _GLIBCXX_USE_C99_COMPLEX_TR1
+  inline __complex__ float
+  __complex_atanh(__complex__ float __z)
+  { return __builtin_catanhf(__z); }
+
+  inline __complex__ double
+  __complex_atanh(__complex__ double __z)
+  { return __builtin_catanh(__z); }
+
+  inline __complex__ long double
+  __complex_atanh(const __complex__ long double& __z)
+  { return __builtin_catanhl(__z); }
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    atanh(const std::complex<_Tp>& __z)
+    { return __complex_atanh(__z.__rep()); }
+#else
+  /// atanh(__z) [8.1.7].
+  //  Effects:  Behaves the same as C99 function catanh, defined
+  //            in subclause 7.3.6.3.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    atanh(const std::complex<_Tp>& __z)
+    { return __complex_atanh(__z); }
+#endif
+
+  template<typename _Tp>
+    inline _Tp
+    /// fabs(__z) [8.1.8].
+    //  Effects:  Behaves the same as C99 function cabs, defined
+    //            in subclause 7.3.8.1.
+    fabs(const std::complex<_Tp>& __z)
+    { return std::abs(__z); }
+
+  /// Additional overloads [8.1.9].
+  template<typename _Tp>
+    inline typename __gnu_cxx::__promote<_Tp>::__type
+    arg(_Tp __x)
+    {
+      typedef typename __gnu_cxx::__promote<_Tp>::__type __type;
+#if (_GLIBCXX11_USE_C99_MATH && !_GLIBCXX_USE_C99_FP_MACROS_DYNAMIC)
+      return std::signbit(__x) ? __type(3.1415926535897932384626433832795029L)
+	                       : __type();
+#else
+      return std::arg(std::complex<__type>(__x));
+#endif
+    }
+
+  template<typename _Tp>
+    _GLIBCXX_CONSTEXPR inline typename __gnu_cxx::__promote<_Tp>::__type
+    imag(_Tp)
+    { return _Tp(); }
+
+  template<typename _Tp>
+    _GLIBCXX20_CONSTEXPR inline typename __gnu_cxx::__promote<_Tp>::__type
+    norm(_Tp __x)
+    {
+      typedef typename __gnu_cxx::__promote<_Tp>::__type __type;
+      return __type(__x) * __type(__x);
+    }
+
+  template<typename _Tp>
+    _GLIBCXX_CONSTEXPR inline typename __gnu_cxx::__promote<_Tp>::__type
+    real(_Tp __x)
+    { return __x; }
+
+  template<typename _Tp, typename _Up>
+    inline std::complex<typename __gnu_cxx::__promote_2<_Tp, _Up>::__type>
+    pow(const std::complex<_Tp>& __x, const _Up& __y)
+    {
+      typedef typename __gnu_cxx::__promote_2<_Tp, _Up>::__type __type;
+      return std::pow(std::complex<__type>(__x), __type(__y));
+    }
+
+  template<typename _Tp, typename _Up>
+    inline std::complex<typename __gnu_cxx::__promote_2<_Tp, _Up>::__type>
+    pow(const _Tp& __x, const std::complex<_Up>& __y)
+    {
+      typedef typename __gnu_cxx::__promote_2<_Tp, _Up>::__type __type;
+      return std::pow(__type(__x), std::complex<__type>(__y));
+    }
+
+  template<typename _Tp, typename _Up>
+    inline std::complex<typename __gnu_cxx::__promote_2<_Tp, _Up>::__type>
+    pow(const std::complex<_Tp>& __x, const std::complex<_Up>& __y)
+    {
+      typedef typename __gnu_cxx::__promote_2<_Tp, _Up>::__type __type;
+      return std::pow(std::complex<__type>(__x),
+		      std::complex<__type>(__y));
+    }
+
+  // Forward declarations.
+  // DR 781.
+  template<typename _Tp>
+    std::complex<_Tp> proj(const std::complex<_Tp>&);
+
+  // Generic implementation of std::proj, does not work for infinities.
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    __complex_proj(const std::complex<_Tp>& __z)
+    { return __z; }
+
+#if _GLIBCXX_USE_C99_COMPLEX
+  inline complex<float>
+  __complex_proj(const complex<float>& __z)
+  { return __builtin_cprojf(__z.__rep()); }
+
+  inline complex<double>
+  __complex_proj(const complex<double>& __z)
+  { return __builtin_cproj(__z.__rep()); }
+
+  inline complex<long double>
+  __complex_proj(const complex<long double>& __z)
+  { return __builtin_cprojl(__z.__rep()); }
+#elif defined _GLIBCXX_USE_C99_MATH_TR1
+  inline complex<float>
+  __complex_proj(const complex<float>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<float>(__builtin_inff(),
+			    __builtin_copysignf(0.0f, __z.imag()));
+    return __z;
+  }
+
+  inline complex<double>
+  __complex_proj(const complex<double>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<double>(__builtin_inf(),
+			     __builtin_copysign(0.0, __z.imag()));
+    return __z;
+  }
+
+  inline complex<long double>
+  __complex_proj(const complex<long double>& __z)
+  {
+    if (__builtin_isinf(__z.real()) || __builtin_isinf(__z.imag()))
+      return complex<long double>(__builtin_infl(),
+				  __builtin_copysignl(0.0l, __z.imag()));
+    return __z;
+  }
+#endif
+
+  template<typename _Tp>
+    inline std::complex<_Tp>
+    proj(const std::complex<_Tp>& __z)
+    { return __complex_proj(__z); }
+
+  // Overload for scalars
+  template<typename _Tp>
+    inline std::complex<typename __gnu_cxx::__promote<_Tp>::__type>
+    proj(_Tp __x)
+    {
+      typedef typename __gnu_cxx::__promote<_Tp>::__type __type;
+      return std::proj(std::complex<__type>(__x));
+    }
+
+  template<typename _Tp>
+    inline _GLIBCXX20_CONSTEXPR
+	std::complex<typename __gnu_cxx::__promote<_Tp>::__type>
+    conj(_Tp __x)
+    {
+      typedef typename __gnu_cxx::__promote<_Tp>::__type __type;
+      return std::complex<__type>(__x, -__type());
+    }
+
+#if __cplusplus > 201103L
 
-    template <class _Other>
-    _CONSTEXPR20 complex& operator*=(const complex<_Other>& _Right) {
-        this->_Mul(_Right);
-        return *this;
-    }
-
-    template <class _Other>
-    _CONSTEXPR20 complex& operator/=(const complex<_Other>& _Right) {
-        this->_Div(_Right);
-        return *this;
-    }
-};
-
-// FUNCTION TEMPLATE operator+
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator+(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp += _Right;
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator+(const complex<_Ty>& _Left, const _Ty& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp.real(_Tmp.real() + _Right);
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator+(const _Ty& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp += _Right;
-    return _Tmp;
-}
-
-// FUNCTION TEMPLATE operator-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator-(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp -= _Right;
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator-(const complex<_Ty>& _Left, const _Ty& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp.real(_Tmp.real() - _Right);
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator-(const _Ty& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp -= _Right;
-    return _Tmp;
-}
-
-// FUNCTION TEMPLATE operator*
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator*(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp *= _Right;
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator*(const complex<_Ty>& _Left, const _Ty& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp.real(_Tmp.real() * _Right);
-    _Tmp.imag(_Tmp.imag() * _Right);
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator*(const _Ty& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp *= _Right;
-    return _Tmp;
-}
-
-// FUNCTION TEMPLATE operator/
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator/(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp /= _Right;
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator/(const complex<_Ty>& _Left, const _Ty& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp.real(_Tmp.real() / _Right);
-    _Tmp.imag(_Tmp.imag() / _Right);
-    return _Tmp;
-}
-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator/(const _Ty& _Left, const complex<_Ty>& _Right) {
-    complex<_Ty> _Tmp(_Left);
-    _Tmp /= _Right;
-    return _Tmp;
-}
-
-// FUNCTION TEMPLATE UNARY operator+
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator+(const complex<_Ty>& _Left) {
-    return _Left;
-}
-
-// FUNCTION TEMPLATE UNARY operator-
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> operator-(const complex<_Ty>& _Left) {
-    return complex<_Ty>(-_Left.real(), -_Left.imag());
-}
-
-// FUNCTION TEMPLATE operator==
-template <class _Ty>
-_NODISCARD constexpr bool operator==(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    return _Left.real() == _Right.real() && _Left.imag() == _Right.imag();
-}
-
-template <class _Ty>
-_NODISCARD constexpr bool operator==(const complex<_Ty>& _Left, const _Ty& _Right) {
-    return _Left.real() == _Right && _Left.imag() == 0;
-}
-
-#if !_HAS_CXX20
-template <class _Ty>
-_NODISCARD constexpr bool operator==(const _Ty& _Left, const complex<_Ty>& _Right) {
-    return _Left == _Right.real() && 0 == _Right.imag();
-}
-#endif // !_HAS_CXX20
-
-// FUNCTION TEMPLATE operator!=
-#if !_HAS_CXX20
-template <class _Ty>
-_NODISCARD constexpr bool operator!=(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    return !(_Left == _Right);
-}
-
-template <class _Ty>
-_NODISCARD constexpr bool operator!=(const complex<_Ty>& _Left, const _Ty& _Right) {
-    return !(_Left == _Right);
-}
-
-template <class _Ty>
-_NODISCARD constexpr bool operator!=(const _Ty& _Left, const complex<_Ty>& _Right) {
-    return !(_Left == _Right);
-}
-#endif // !_HAS_CXX20
-
-// FUNCTION TEMPLATE imag
-template <class _Ty>
-_NODISCARD constexpr _Ty imag(const complex<_Ty>& _Left) {
-    return _Left.imag();
-}
-
-// FUNCTION TEMPLATE real
-template <class _Ty>
-_NODISCARD constexpr _Ty real(const complex<_Ty>& _Left) {
-    return _Left.real();
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> sqrt(const complex<_Ty>& _Left);
-
-// FUNCTION TEMPLATE abs
-template <class _Ty>
-_NODISCARD _Ty abs(const complex<_Ty>& _Left) {
-    return _Ctraits<_Ty>::hypot(_Left.real(), _Left.imag());
-}
-
-// FUNCTION TEMPLATE acos
-template <class _Ty>
-_NODISCARD complex<_Ty> acos(const complex<_Ty>& _Left) {
-    const _Ty _Arcbig = static_cast<_Ty>(0.25) * _Ctraits<_Ty>::sqrt(_Ctraits<_Ty>::_Flt_max());
-    constexpr _Ty _Pi = static_cast<_Ty>(3.1415926535897932384626433832795029L);
-
-    const _Ty _Re = real(_Left);
-    const _Ty _Im = imag(_Left);
-    _Ty _Ux;
-    _Ty _Vx;
-
-    if (_Ctraits<_Ty>::_Isnan(_Re) || _Ctraits<_Ty>::_Isnan(_Im)) { // at least one NaN
-        _Ux = _Ctraits<_Ty>::_Nanv();
-        _Vx = _Ux;
-    } else if (_Ctraits<_Ty>::_Isinf(_Re)) { // (+/-Inf, not NaN)
-        if (_Ctraits<_Ty>::_Isinf(_Im)) {
-            if (_Re < 0) {
-                _Ux = static_cast<_Ty>(0.75) * _Pi; // (-Inf, +/-Inf)
-            } else {
-                _Ux = static_cast<_Ty>(0.25) * _Pi; // (+Inf, +/-Inf)
-            }
-        } else if (_Re < 0) {
-            _Ux = _Pi; // (-Inf, finite)
-        } else {
-            _Ux = 0; // (+Inf, finite)
-        }
-        _Vx = -_Ctraits<_Ty>::_Copysign(_Ctraits<_Ty>::_Infv(), _Im);
-    } else if (_Ctraits<_Ty>::_Isinf(_Im)) { // (finite, finite)
-        _Ux = static_cast<_Ty>(0.50) * _Pi; // (finite, +/-Inf)
-        _Vx = -_Im;
-    } else { // (finite, finite)
-        const complex<_Ty> _Wx = sqrt(complex<_Ty>(1 + _Re, -_Im));
-        const complex<_Ty> _Zx = sqrt(complex<_Ty>(1 - _Re, -_Im));
-        const _Ty _Wr          = real(_Wx);
-        const _Ty _Wi          = imag(_Wx);
-        const _Ty _Zr          = real(_Zx);
-        const _Ty _Zi          = imag(_Zx);
-        _Ty _Alfa;
-        _Ty _Beta;
-
-        _Ux = 2 * _Ctraits<_Ty>::atan2(_Zr, _Wr);
-
-        if (_Arcbig < _Wr) { // real parts large
-            _Alfa = _Wr;
-            _Beta = _Zi + _Wi * (_Zr / _Alfa);
-        } else if (_Arcbig < _Wi) { // imag parts large
-            _Alfa = _Wi;
-            _Beta = _Wr * (_Zi / _Alfa) + _Zr;
-        } else if (_Wi < -_Arcbig) { // imag part of w large negative
-            _Alfa = -_Wi;
-            _Beta = _Wr * (_Zi / _Alfa) - _Zr;
-        } else { // shouldn't overflow
-            _Alfa = 0;
-            _Beta = _Wr * _Zi + _Wi * _Zr; // Im(w * z)
-        }
-
-        _Vx = _Ctraits<_Ty>::asinh(_Beta);
-        if (_Alfa != 0) {
-            if (0 <= _Vx) {
-                _Vx += _Ctraits<_Ty>::log(_Alfa);
-            } else {
-                _Vx -= _Ctraits<_Ty>::log(_Alfa); // asinh(a*b) = asinh(a)+log(b)
-            }
-        }
-    }
-    return complex<_Ty>(_Ux, _Vx);
-}
-
-// FUNCTION TEMPLATE acosh
-template <class _Ty>
-_NODISCARD complex<_Ty> acosh(const complex<_Ty>& _Left) {
-    const _Ty _Arcbig = static_cast<_Ty>(0.25) * _Ctraits<_Ty>::sqrt(_Ctraits<_Ty>::_Flt_max());
-    constexpr _Ty _Pi = static_cast<_Ty>(3.1415926535897932384626433832795029L);
-
-    const _Ty _Re = real(_Left);
-    _Ty _Im       = imag(_Left);
-    _Ty _Ux;
-    _Ty _Vx;
-
-    if (_Ctraits<_Ty>::_Isnan(_Re) || _Ctraits<_Ty>::_Isnan(_Im)) { // at least one NaN
-        _Ux = _Ctraits<_Ty>::_Nanv();
-        _Vx = _Ux;
-    } else if (_Ctraits<_Ty>::_Isinf(_Re)) { // (+/-Inf, not NaN)
-        _Ux = _Ctraits<_Ty>::_Infv();
-
-        if (_Ctraits<_Ty>::_Isinf(_Im)) {
-            if (_Re < 0) {
-                _Vx = static_cast<_Ty>(0.75) * _Pi; // (-Inf, +/-Inf)
-            } else {
-                _Vx = static_cast<_Ty>(0.25) * _Pi; // (+Inf, +/-Inf)
-            }
-        } else if (_Re < 0) {
-            _Vx = _Pi; // (-Inf, finite)
-        } else {
-            _Vx = 0; // (+Inf, finite)
-        }
-
-        _Vx = _Ctraits<_Ty>::_Copysign(_Vx, _Im);
-    } else if (_Ctraits<_Ty>::_Isinf(_Im)) { // (finite, +/-Inf)
-        _Ux = _Ctraits<_Ty>::_Infv();
-        _Vx = _Ctraits<_Ty>::_Copysign(static_cast<_Ty>(0.50) * _Pi, _Im);
-    } else { // (finite, finite)
-        const complex<_Ty> _Wx = sqrt(complex<_Ty>(_Re - 1, -_Im));
-        const complex<_Ty> _Zx = sqrt(complex<_Ty>(_Re + 1, _Im));
-        const _Ty _Wr          = real(_Wx);
-        const _Ty _Wi          = imag(_Wx);
-        const _Ty _Zr          = real(_Zx);
-        const _Ty _Zi          = imag(_Zx);
-        _Ty _Alfa;
-        _Ty _Beta;
-
-        if (_Arcbig < _Wr) { // real parts large
-            _Alfa = _Wr;
-            _Beta = _Zr - _Wi * (_Zi / _Alfa);
-        } else if (_Arcbig < _Wi) { // imag parts large
-            _Alfa = _Wi;
-            _Beta = _Wr * (_Zr / _Alfa) - _Zi;
-        } else if (_Wi < -_Arcbig) { // imag part of w large negative
-            _Alfa = -_Wi;
-            _Beta = _Wr * (_Zr / _Alfa) + _Zi;
-        } else { // shouldn't overflow
-            _Alfa = 0;
-            _Beta = _Wr * _Zr - _Wi * _Zi; // Re(w * z)
-        }
-
-        _Ux = _Ctraits<_Ty>::asinh(_Beta);
-        if (_Alfa != 0) {
-            if (0 <= _Ux) {
-                _Ux += _Ctraits<_Ty>::log(_Alfa);
-            } else {
-                _Ux -= _Ctraits<_Ty>::log(_Alfa); // asinh(a*b) = asinh(a)+log(b)
-            }
-        }
-
-        _Vx = 2 * _Ctraits<_Ty>::atan2(imag(sqrt(complex<_Ty>(_Re - 1, _Im))), _Zr);
-    }
-    return complex<_Ty>(_Ux, _Vx);
-}
-
-// FUNCTION TEMPLATE asinh
-template <class _Ty>
-_NODISCARD complex<_Ty> asinh(const complex<_Ty>& _Left) {
-    const _Ty _Arcbig = static_cast<_Ty>(0.25) * _Ctraits<_Ty>::sqrt(_Ctraits<_Ty>::_Flt_max());
-    constexpr _Ty _Pi = static_cast<_Ty>(3.1415926535897932384626433832795029L);
-
-    const _Ty _Re = real(_Left);
-    _Ty _Im       = imag(_Left);
-    _Ty _Ux;
-    _Ty _Vx;
-
-    if (_Ctraits<_Ty>::_Isnan(_Re) || _Ctraits<_Ty>::_Isnan(_Im)) { // at least one NaN/Inf
-        _Ux = _Ctraits<_Ty>::_Nanv();
-        _Vx = _Ux;
-    } else if (_Ctraits<_Ty>::_Isinf(_Re)) { // (+/-Inf, not NaN)
-        _Ux = _Ctraits<_Ty>::_Infv();
-
-        if (_Ctraits<_Ty>::_Isinf(_Im)) { // (+/-Inf, +/-Inf)
-            _Ux = _Re;
-            _Vx = _Ctraits<_Ty>::_Copysign(static_cast<_Ty>(0.25) * _Pi, _Im);
-        } else { // (+/-Inf, finite)
-            _Ux = _Re;
-            _Vx = _Ctraits<_Ty>::_Copysign(_Ty{0}, _Im);
-        }
-    } else if (_Ctraits<_Ty>::_Isinf(_Im)) { // (finite, +/-Inf)
-        _Ux = _Ctraits<_Ty>::_Copysign(_Ctraits<_Ty>::_Infv(), _Re);
-        _Vx = _Ctraits<_Ty>::_Copysign(static_cast<_Ty>(0.50) * _Pi, _Im);
-    } else { // (finite, finite)
-        const complex<_Ty> _Wx = sqrt(complex<_Ty>(1 - _Im, _Re));
-        const complex<_Ty> _Zx = sqrt(complex<_Ty>(1 + _Im, -_Re));
-        const _Ty _Wr          = real(_Wx);
-        const _Ty _Wi          = imag(_Wx);
-        const _Ty _Zr          = real(_Zx);
-        const _Ty _Zi          = imag(_Zx);
-        _Ty _Alfa;
-        _Ty _Beta;
-
-        if (_Arcbig < _Wr) { // real parts large
-            _Alfa = _Wr;
-            _Beta = _Wi * (_Zr / _Alfa) - _Zi;
-        } else if (_Arcbig < _Wi) { // imag parts large
-            _Alfa = _Wi;
-            _Beta = _Zr - _Wr * (_Zi / _Alfa);
-        } else if (_Wi < -_Arcbig) { // imag part of w large negative
-            _Alfa = -_Wi;
-            _Beta = -_Zr - _Wr * (_Zi / _Alfa);
-        } else { // shouldn't overflow
-            _Alfa = 0;
-            _Beta = _Wi * _Zr - _Wr * _Zi; // Im(w * conj(z))
-        }
-
-        _Ux = _Ctraits<_Ty>::asinh(_Beta);
-        if (_Alfa != 0) {
-            if (0 <= _Ux) {
-                _Ux += _Ctraits<_Ty>::log(_Alfa);
-            } else {
-                _Ux -= _Ctraits<_Ty>::log(_Alfa); // asinh(a*b) = asinh(a)+log(b)
-            }
-        }
-
-        _Vx = _Ctraits<_Ty>::atan2(_Im, real(_Wx * _Zx));
-    }
-
-    return complex<_Ty>(_Ux, _Vx);
-}
-
-// FUNCTION TEMPLATE asin
-template <class _Ty>
-_NODISCARD complex<_Ty> asin(const complex<_Ty>& _Left) {
-    complex<_Ty> _Asinh = _STD asinh(complex<_Ty>(-imag(_Left), real(_Left)));
-
-    return complex<_Ty>(imag(_Asinh), -real(_Asinh));
-}
-
-// FUNCTION TEMPLATE atanh
-template <class _Ty>
-_NODISCARD complex<_Ty> atanh(const complex<_Ty>& _Left) {
-    const _Ty _Arcbig    = static_cast<_Ty>(0.25) * _Ctraits<_Ty>::sqrt(_Ctraits<_Ty>::_Flt_max());
-    constexpr _Ty _Piby2 = static_cast<_Ty>(1.5707963267948966192313216916397514L);
-
-    _Ty _Re = real(_Left);
-    _Ty _Im = imag(_Left);
-    _Ty _Ux;
-    _Ty _Vx;
-
-    if (_Ctraits<_Ty>::_Isnan(_Re) || _Ctraits<_Ty>::_Isnan(_Im)) { // at least one NaN
-        _Ux = _Ctraits<_Ty>::_Nanv();
-        _Vx = _Ux;
-    } else if (_Ctraits<_Ty>::_Isinf(_Re)) { // (+/-Inf, not NaN)
-        _Ux = _Ctraits<_Ty>::_Copysign(_Ty{0}, _Re);
-        _Vx = _Ctraits<_Ty>::_Copysign(_Piby2, _Im);
-    } else { // (finite, not _NaN)
-        const _Ty _Magim  = _Ctraits<_Ty>::_Abs(_Im);
-        const _Ty _Old_re = _Re;
-
-        _Re = _Ctraits<_Ty>::_Abs(_Re);
-
-        if (_Arcbig < _Re) { // |re| is large
-            _Ty _Fx = _Im / _Re;
-
-            _Ux = 1 / _Re / (1 + _Fx * _Fx);
-            _Vx = _Ctraits<_Ty>::_Copysign(_Piby2, _Im);
-        } else if (_Arcbig < _Magim) { // |im| is large
-            _Ty _Fx = _Re / _Im;
-
-            _Ux = _Fx / _Im / (1 + _Fx * _Fx);
-            _Vx = _Ctraits<_Ty>::_Copysign(_Piby2, _Im);
-        } else if (_Re != 1) { // |re| is small
-            _Ty _Refrom1 = 1 - _Re;
-            _Ty _Imeps2  = _Magim * _Magim;
-
-            _Ux = static_cast<_Ty>(0.25) * _Ctraits<_Ty>::log1p(4 * _Re / (_Refrom1 * _Refrom1 + _Imeps2));
-            _Vx = static_cast<_Ty>(0.50) * _Ctraits<_Ty>::atan2(2 * _Im, _Refrom1 * (1 + _Re) - _Imeps2);
-        } else if (_Im == 0) { // {+/-1, 0)
-            _Ux = _Ctraits<_Ty>::_Infv();
-            _Vx = _Im;
-        } else { // {+/-1, nonzero)
-            _Ux = _Ctraits<_Ty>::log(
-                _Ctraits<_Ty>::sqrt(_Ctraits<_Ty>::sqrt(4 + _Im * _Im)) / _Ctraits<_Ty>::sqrt(_Magim));
-            _Vx = _Ctraits<_Ty>::_Copysign(static_cast<_Ty>(0.50) * (_Piby2 + _Ctraits<_Ty>::atan2(_Magim, 2)), _Im);
-        }
-
-        _Ux = _Ctraits<_Ty>::_Copysign(_Ux, _Old_re);
-    }
-    return complex<_Ty>(_Ux, _Vx);
-}
-
-// FUNCTION TEMPLATE atan
-template <class _Ty>
-_NODISCARD complex<_Ty> atan(const complex<_Ty>& _Left) {
-    complex<_Ty> _Atanh = _STD atanh(complex<_Ty>(-imag(_Left), real(_Left)));
-
-    return complex<_Ty>(imag(_Atanh), -real(_Atanh));
-}
-
-// FUNCTION TEMPLATE cosh
-template <class _Ty>
-_NODISCARD complex<_Ty> cosh(const complex<_Ty>& _Left) {
-    return complex<_Ty>(_Ctraits<_Ty>::_Cosh(real(_Left), _Ctraits<_Ty>::cos(imag(_Left))),
-        _Ctraits<_Ty>::_Sinh(real(_Left), _Ctraits<_Ty>::sin(imag(_Left))));
-}
-
-// FUNCTION TEMPLATE exp
-template <class _Ty>
-_NODISCARD complex<_Ty> exp(const complex<_Ty>& _Left) {
-    _Ty _Real(real(_Left)), _Imag(real(_Left));
-    _Ctraits<_Ty>::_Exp(&_Real, _Ctraits<_Ty>::cos(imag(_Left)), 0);
-    _Ctraits<_Ty>::_Exp(&_Imag, _Ctraits<_Ty>::sin(imag(_Left)), 0);
-    return complex<_Ty>(_Real, _Imag);
-}
-
-// FUNCTION TEMPLATE _Fabs
-template <class _Ty>
-_Ty _Fabs(const complex<_Ty>& _Left, int* _Pexp) { // Used by sqrt(), return magnitude and scale factor.
-                                                   // Returns a non-zero even integer in *_Pexp when _Left is finite
-                                                   // and non-zero.
-                                                   // Returns 0 in *_Pexp when _Left is zero, infinity, or NaN.
-    *_Pexp  = 0;
-    _Ty _Av = _Ctraits<_Ty>::_Abs(_STD real(_Left));
-    _Ty _Bv = _Ctraits<_Ty>::_Abs(_STD imag(_Left));
-
-    if (_Ctraits<_Ty>::_Isinf(_Av) || _Ctraits<_Ty>::_Isinf(_Bv)) {
-        return _Ctraits<_Ty>::_Infv(); // at least one component is INF
-    } else if (_Ctraits<_Ty>::_Isnan(_Av)) {
-        return _Av; // real component is NaN
-    } else if (_Ctraits<_Ty>::_Isnan(_Bv)) {
-        return _Bv; // imaginary component is NaN
-    } else { // neither component is NaN or INF
-        if (_Av < _Bv) { // ensure that |_Bv| <= |_Av|
-            _STD swap(_Av, _Bv);
-        }
-
-        if (_Av == 0) {
-            return _Av; // |0| == 0
-        }
-
-        if (1 <= _Av) {
-            *_Pexp = 4;
-            _Av    = _Av * static_cast<_Ty>(0.0625);
-            _Bv    = _Bv * static_cast<_Ty>(0.0625);
-        } else {
-            constexpr _Ty _Flt_eps = _Ctraits<_Ty>::_Flt_eps();
-            // TRANSITION, workaround for non-floating-point _Ty
-            constexpr _Ty _Leg_tiny = _Flt_eps == 0 ? _Ty{0} : 2 * _Ctraits<_Ty>::_Flt_norm_min() / _Flt_eps;
-
-            if (_Av < _Leg_tiny) {
-                constexpr int _Exponent = -2 * numeric_limits<_Ty>::digits;
-
-                *_Pexp = _Exponent;
-                _Av    = _Ctraits<_Ty>::ldexp(_Av, -_Exponent);
-                _Bv    = _Ctraits<_Ty>::ldexp(_Bv, -_Exponent);
-            } else {
-                *_Pexp = -2;
-                _Av    = _Av * 4;
-                _Bv    = _Bv * 4;
-            }
-        }
-
-        const _Ty _Tmp = _Av - _Bv;
-        if (_Tmp == _Av) {
-            return _Av; // _Bv unimportant
-        } else if (_Bv < _Tmp) { // use simple approximation
-            const _Ty _Qv = _Av / _Bv;
-            return _Av + _Bv / (_Qv + _Ctraits<_Ty>::sqrt(_Qv * _Qv + 1));
-        } else { // use 1 1/2 precision to preserve bits
-            constexpr _Ty _Root2            = static_cast<_Ty>(1.4142135623730950488016887242096981L);
-            constexpr _Ty _Oneplusroot2high = static_cast<_Ty>(10125945.0 / 4194304.0); // exact if prec >= 24 bits
-            constexpr _Ty _Oneplusroot2low  = static_cast<_Ty>(1.4341252375973918872420969807856967e-7L);
-
-            const _Ty _Qv = _Tmp / _Bv;
-            const _Ty _Rv = (_Qv + 2) * _Qv;
-            const _Ty _Sv = _Rv / (_Root2 + _Ctraits<_Ty>::sqrt(_Rv + 2)) + _Oneplusroot2low + _Qv + _Oneplusroot2high;
-            return _Av + _Bv / _Sv;
-        }
-    }
-}
-
-// FUNCTION TEMPLATE log
-template <class _Ty>
-_NODISCARD _Ty _Log_abs(const complex<_Ty>& _Left) noexcept { // for double, long double, and non-floating-point types
-    return static_cast<_Ty>(
-        _Math_algorithms::_Log_hypot(static_cast<double>(_STD real(_Left)), static_cast<double>(_STD imag(_Left))));
-}
-
-_NODISCARD inline float _Log_abs(const complex<float>& _Left) noexcept {
-    return _Math_algorithms::_Log_hypot(_STD real(_Left), _STD imag(_Left));
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> log(const complex<_Ty>& _Left) {
-    const _Ty _Log_abs_v = _STD _Log_abs(_Left); // get logarithm of magnitude
-    const _Ty _Theta     = _Ctraits<_Ty>::atan2(_STD imag(_Left), _STD real(_Left)); // get phase
-    return complex<_Ty>(_Log_abs_v, _Theta);
-}
-
-// FUNCTION TEMPLATE pow
-template <class _Ty>
-complex<_Ty> _Pow(const _Ty& _Left, const _Ty& _Right) {
-    if (0 <= _Left) {
-        return complex<_Ty>(_Ctraits<_Ty>::pow(_Left, _Right), _Ctraits<_Ty>::_Copysign(_Ty{0}, _Right));
-    } else {
-        return exp(_Right * log(complex<_Ty>(_Left)));
-    }
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> pow(const complex<_Ty>& _Left, const _Ty& _Right) {
-    if (imag(_Left) == 0) {
-        if (_Ctraits<_Ty>::_Signbit(imag(_Left))) {
-            return conj(_Pow(real(_Left), _Right));
-        } else {
-            return _Pow(real(_Left), _Right);
-        }
-    } else {
-        return exp(_Right * log(_Left));
-    }
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> pow(const _Ty& _Left, const complex<_Ty>& _Right) {
-    if (imag(_Right) == 0) {
-        return _Pow(_Left, real(_Right));
-    } else if (0 < _Left) {
-        return exp(_Right * _Ctraits<_Ty>::log(_Left));
-    } else {
-        return exp(_Right * log(complex<_Ty>(_Left)));
-    }
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> pow(const complex<_Ty>& _Left, const complex<_Ty>& _Right) {
-    if (imag(_Right) == 0) {
-        return pow(_Left, real(_Right));
-    } else if (imag(_Left) == 0 && 0 < real(_Left)) {
-        return exp(_Right * _Ctraits<_Ty>::log(real(_Left)));
-    } else {
-        return exp(_Right * log(_Left));
-    }
-}
-
-// FUNCTION TEMPLATE sinh
-template <class _Ty>
-_NODISCARD complex<_Ty> sinh(const complex<_Ty>& _Left) {
-    return complex<_Ty>(_Ctraits<_Ty>::_Sinh(real(_Left), _Ctraits<_Ty>::cos(imag(_Left))),
-        _Ctraits<_Ty>::_Cosh(real(_Left), _Ctraits<_Ty>::sin(imag(_Left))));
-}
-
-// FUNCTION TEMPLATE sqrt
-template <class _Ty>
-_NODISCARD complex<_Ty> sqrt(const complex<_Ty>& _Left) {
-    int _Leftexp;
-    _Ty _Rho = _Fabs(_Left, &_Leftexp); // get magnitude and scale factor
-
-    if (_Leftexp == 0) {
-        // argument is zero, INF, or NaN
-        if (_Rho == 0) {
-            return complex<_Ty>(_Ty{0}, imag(_Left));
-        } else if (_Ctraits<_Ty>::_Isinf(_Rho)) {
-            const _Ty _Re = real(_Left);
-            const _Ty _Im = imag(_Left);
-
-            if (_Ctraits<_Ty>::_Isinf(_Im)) {
-                return complex<_Ty>(_Ctraits<_Ty>::_Infv(), _Im); // (any, +/-Inf)
-            } else if (_Ctraits<_Ty>::_Isnan(_Im)) {
-                if (_Re < 0) {
-                    return complex<_Ty>(_Ctraits<_Ty>::_Abs(_Im), _Ctraits<_Ty>::_Copysign(_Re, _Im)); // (-Inf, NaN)
-                } else {
-                    return _Left; // (+Inf, NaN)
-                }
-            } else {
-                if (_Re < 0) {
-                    return complex<_Ty>(_Ty{0}, _Ctraits<_Ty>::_Copysign(_Re, _Im)); // (-Inf, finite)
-                } else {
-                    return complex<_Ty>(_Re, _Ctraits<_Ty>::_Copysign(_Ty{0}, _Im)); // (+Inf, finite)
-                }
-            }
-        } else {
-            return complex<_Ty>(_Rho, _Rho);
-        }
-    } else { // compute in safest quadrant
-        _Ty _Realmag = _Ctraits<_Ty>::ldexp(_Ctraits<_Ty>::_Abs(real(_Left)), -_Leftexp);
-        _Rho         = _Ctraits<_Ty>::ldexp(_Ctraits<_Ty>::sqrt(2 * (_Realmag + _Rho)), _Leftexp / 2 - 1);
-
-        if (0 <= real(_Left)) {
-            return complex<_Ty>(_Rho, imag(_Left) / (2 * _Rho));
-        } else {
-            return complex<_Ty>(
-                _Ctraits<_Ty>::_Abs(imag(_Left) / (2 * _Rho)), _Ctraits<_Ty>::_Copysign(_Rho, imag(_Left)));
-        }
-    }
-}
-
-// FUNCTION TEMPLATE tanh
-template <class _Ty>
-_NODISCARD complex<_Ty> tanh(const complex<_Ty>& _Left) {
-    _Ty _Tv = _Ctraits<_Ty>::tan(imag(_Left));
-    _Ty _Sv = _Ctraits<_Ty>::_Sinh(real(_Left), _Ty{1});
-    _Ty _Bv = _Sv * (_Ty{1} + _Tv * _Tv);
-    _Ty _Dv = _Ty{1} + _Bv * _Sv;
-
-    if (_Ctraits<_Ty>::_Isinf(_Dv)) {
-        _Ty _Real;
-
-        if (_Sv < _Ty{0}) {
-            _Real = -_Ty{1};
-        } else {
-            _Real = _Ty{1};
-        }
-
-        return complex<_Ty>(_Real, _Tv * _Ty{0});
-    }
-
-    return complex<_Ty>((_Ctraits<_Ty>::sqrt(_Ty{1} + _Sv * _Sv)) * _Bv / _Dv, _Tv / _Dv);
-}
-
-// FUNCTION TEMPLATE arg
-template <class _Ty>
-_NODISCARD _Ty arg(const complex<_Ty>& _Left) { // return phase angle of complex as real
-    return _Ctraits<_Ty>::atan2(imag(_Left), real(_Left));
-}
-
-// FUNCTION TEMPLATE conj
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 complex<_Ty> conj(const complex<_Ty>& _Left) { // return complex conjugate
-    return complex<_Ty>(real(_Left), -imag(_Left));
-}
-
-// FUNCTION TEMPLATE proj
-template <class _Ty>
-_NODISCARD complex<_Ty> proj(const complex<_Ty>& _Left) { // return complex projection
-    if (_Ctraits<_Ty>::_Isinf(real(_Left)) || _Ctraits<_Ty>::_Isinf(imag(_Left))) {
-        const _Ty _Imag = _Ctraits<_Ty>::_Copysign(_Ty{0}, imag(_Left));
-        return complex<_Ty>(_Ctraits<_Ty>::_Infv(), _Imag);
-    }
-
-    return _Left;
-}
-
-// FUNCTION TEMPLATE cos
-template <class _Ty>
-_NODISCARD complex<_Ty> cos(const complex<_Ty>& _Left) {
-    return complex<_Ty>(_Ctraits<_Ty>::_Cosh(imag(_Left), _Ctraits<_Ty>::cos(real(_Left))),
-        -_Ctraits<_Ty>::_Sinh(imag(_Left), _Ctraits<_Ty>::sin(real(_Left))));
-}
-
-// FUNCTION TEMPLATE log10
-template <class _Ty>
-_NODISCARD complex<_Ty> log10(const complex<_Ty>& _Left) {
-    return log(_Left) * static_cast<_Ty>(0.43429448190325182765112891891660508L);
-}
-
-// FUNCTION TEMPLATE norm
-template <class _Ty>
-_NODISCARD _CONSTEXPR20 _Ty norm(const complex<_Ty>& _Left) { // return squared magnitude
-    return real(_Left) * real(_Left) + imag(_Left) * imag(_Left);
-}
-
-// FUNCTION TEMPLATE polar
-template <class _Ty>
-_NODISCARD complex<_Ty> polar(const _Ty& _Rho, const _Ty& _Theta) { // return _Rho * exp(i * _Theta) as complex
-    return complex<_Ty>(_Rho * _Ctraits<_Ty>::cos(_Theta), _Rho * _Ctraits<_Ty>::sin(_Theta));
-}
-
-template <class _Ty>
-_NODISCARD complex<_Ty> polar(const _Ty& _Rho) { // return _Rho * exp(i * 0) as complex
-    return complex<_Ty>(_Rho, _Ty{0});
-}
-
-// FUNCTION TEMPLATE sin
-template <class _Ty>
-_NODISCARD complex<_Ty> sin(const complex<_Ty>& _Left) {
-    return complex<_Ty>(_Ctraits<_Ty>::_Cosh(imag(_Left), _Ctraits<_Ty>::sin(real(_Left))),
-        _Ctraits<_Ty>::_Sinh(imag(_Left), _Ctraits<_Ty>::cos(real(_Left))));
-}
-
-// FUNCTION TEMPLATE tan
-template <class _Ty>
-_NODISCARD complex<_Ty> tan(const complex<_Ty>& _Left) {
-    complex<_Ty> _Zv(tanh(complex<_Ty>(-imag(_Left), real(_Left))));
-    return complex<_Ty>(imag(_Zv), -real(_Zv));
-}
-
-// ADDITIONAL OVERLOADS
-template <class _Ty>
-using _Upgrade_to_double = conditional_t<is_integral_v<_Ty>, double, _Ty>;
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD _Upgrade_to_double<_Ty> arg(_Ty _Left) {
-    using _Upgraded = _Upgrade_to_double<_Ty>;
-    const auto _Val = static_cast<_Upgraded>(_Left);
-
-    return _Ctraits<_Upgraded>::atan2(0, _Val);
-}
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD _CONSTEXPR20 _Upgrade_to_double<_Ty> imag(_Ty) {
-    return 0;
-}
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD _CONSTEXPR20 _Upgrade_to_double<_Ty> real(_Ty _Left) {
-    using _Upgraded = _Upgrade_to_double<_Ty>;
-    const auto _Val = static_cast<_Upgraded>(_Left);
-
-    return _Val;
-}
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD _CONSTEXPR20 _Upgrade_to_double<_Ty> norm(_Ty _Left) {
-    using _Upgraded = _Upgrade_to_double<_Ty>;
-    const auto _Val = static_cast<_Upgraded>(_Left);
-
-    return _Val * _Val;
-}
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD _CONSTEXPR20 complex<_Upgrade_to_double<_Ty>> conj(_Ty _Left) {
-    using _Upgraded = _Upgrade_to_double<_Ty>;
-    const auto _Val = static_cast<_Upgraded>(_Left);
-
-    return complex<_Upgraded>(_Val, -_Upgraded{0});
-}
-
-template <class _Ty, enable_if_t<is_arithmetic_v<_Ty>, int> = 0>
-_NODISCARD complex<_Upgrade_to_double<_Ty>> proj(_Ty _Left) {
-    using _Upgraded = _Upgrade_to_double<_Ty>;
-    const auto _Val = static_cast<_Upgraded>(_Left);
-
-    if (_Ctraits<_Upgraded>::_Isinf(_Val)) {
-        // C11 7.3.9.5/2: "z projects to z except that all complex infinities [...]
-        // project to positive infinity on the real axis."
-        return complex<_Upgraded>(_Ctraits<_Upgraded>::_Infv(), 0);
-    }
-
-    return complex<_Upgraded>(_Val, 0);
-}
-
-// FUNCTION TEMPLATE pow
-template <class _Ty1, class _Ty2>
-_NODISCARD complex<_Common_float_type_t<_Ty1, _Ty2>> pow(const complex<_Ty1>& _Left, const complex<_Ty2>& _Right) {
-    using _Type = complex<_Common_float_type_t<_Ty1, _Ty2>>;
-    return _STD pow(_Type(_Left), _Type(_Right));
-}
-
-template <class _Ty1, class _Ty2, enable_if_t<is_arithmetic_v<_Ty2>, int> = 0>
-_NODISCARD complex<_Common_float_type_t<_Ty1, _Ty2>> pow(const complex<_Ty1>& _Left, const _Ty2& _Right) {
-    using _Promoted = _Common_float_type_t<_Ty1, _Ty2>;
-    using _Type     = complex<_Promoted>;
-    return _STD pow(_Type(_Left), _Type(static_cast<_Promoted>(_Right)));
-}
-
-template <class _Ty1, class _Ty2, enable_if_t<is_arithmetic_v<_Ty1>, int> = 0>
-_NODISCARD complex<_Common_float_type_t<_Ty1, _Ty2>> pow(const _Ty1& _Left, const complex<_Ty2>& _Right) {
-    using _Promoted = _Common_float_type_t<_Ty1, _Ty2>;
-    using _Type     = complex<_Promoted>;
-    return _STD pow(_Type(static_cast<_Promoted>(_Left)), _Type(_Right));
-}
-
-// FUNCTION TEMPLATE operator>>
-template <class _Ty, class _Elem, class _Tr>
-basic_istream<_Elem, _Tr>& operator>>(basic_istream<_Elem, _Tr>& _Istr, complex<_Ty>& _Right) {
-    const ctype<_Elem>& _Ctype_fac = _STD use_facet<ctype<_Elem>>(_Istr.getloc());
-    _Elem _Ch                      = 0;
-    long double _Real              = 0;
-    long double _Imag              = 0;
-
-    if (_Istr >> _Ch && _Ch != _Ctype_fac.widen('(')) { // no leading '(', treat as real only
-        _Istr.putback(_Ch);
-        _Istr >> _Real;
-        _Imag = 0;
-    } else if (_Istr >> _Real >> _Ch && _Ch != _Ctype_fac.widen(',')) {
-        if (_Ch == _Ctype_fac.widen(')')) {
-            _Imag = 0; // (real)
-        } else { // no trailing ')' after real, treat as bad field
-            _Istr.putback(_Ch);
-            _Istr.setstate(ios_base::failbit);
-        }
-    } else if (_Istr >> _Imag >> _Ch && _Ch != _Ctype_fac.widen(')')) { // no imag or trailing ')', treat as bad field
-        _Istr.putback(_Ch);
-        _Istr.setstate(ios_base::failbit);
-    }
-
-    if (!_Istr.fail()) { // store valid result
-        _Ty _Tyreal(static_cast<_Ty>(_Real)), _Tyimag(static_cast<_Ty>(_Imag));
-        _Right = complex<_Ty>(_Tyreal, _Tyimag);
-    }
-    return _Istr;
-}
-
-// FUNCTION TEMPLATE operator<<
-template <class _Ty, class _Elem, class _Tr>
-basic_ostream<_Elem, _Tr>& operator<<(basic_ostream<_Elem, _Tr>& _Ostr, const complex<_Ty>& _Right) {
-    const ctype<_Elem>& _Ctype_fac = _STD use_facet<ctype<_Elem>>(_Ostr.getloc());
-    basic_ostringstream<_Elem, _Tr, allocator<_Elem>> _Sstr;
-
-    _Sstr.flags(_Ostr.flags());
-    _Sstr.imbue(_Ostr.getloc());
-    _Sstr.precision(_Ostr.precision());
-    _Sstr << _Ctype_fac.widen('(') << real(_Right) << _Ctype_fac.widen(',') << imag(_Right) << _Ctype_fac.widen(')');
-
-    return _Ostr << _Sstr.str();
-}
-
-// complex LITERALS
 inline namespace literals {
-    inline namespace complex_literals {
-        _NODISCARD constexpr complex<long double> operator""il(long double _Val) {
-            return complex<long double>(0.0L, static_cast<long double>(_Val));
-        }
+inline namespace complex_literals {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+#define __cpp_lib_complex_udls 201309
 
-        _NODISCARD constexpr complex<long double> operator""il(unsigned long long _Val) {
-            return complex<long double>(0.0L, static_cast<long double>(_Val));
-        }
+  constexpr std::complex<float>
+  operator""if(long double __num)
+  { return std::complex<float>{0.0F, static_cast<float>(__num)}; }
 
-        _NODISCARD constexpr complex<double> operator""i(long double _Val) {
-            return complex<double>(0.0, static_cast<double>(_Val));
-        }
+  constexpr std::complex<float>
+  operator""if(unsigned long long __num)
+  { return std::complex<float>{0.0F, static_cast<float>(__num)}; }
 
-        _NODISCARD constexpr complex<double> operator""i(unsigned long long _Val) {
-            return complex<double>(0.0, static_cast<double>(_Val));
-        }
+  constexpr std::complex<double>
+  operator""i(long double __num)
+  { return std::complex<double>{0.0, static_cast<double>(__num)}; }
 
-        _NODISCARD constexpr complex<float> operator""if(long double _Val) {
-            return complex<float>(0.0f, static_cast<float>(_Val));
-        }
+  constexpr std::complex<double>
+  operator""i(unsigned long long __num)
+  { return std::complex<double>{0.0, static_cast<double>(__num)}; }
 
-        _NODISCARD constexpr complex<float> operator""if(unsigned long long _Val) {
-            return complex<float>(0.0f, static_cast<float>(_Val));
-        }
-    } // namespace complex_literals
-} // namespace literals
+  constexpr std::complex<long double>
+  operator""il(long double __num)
+  { return std::complex<long double>{0.0L, __num}; }
 
-_STD_END
+  constexpr std::complex<long double>
+  operator""il(unsigned long long __num)
+  { return std::complex<long double>{0.0L, static_cast<long double>(__num)}; }
 
-#undef _RE
-#undef _IM
+#pragma GCC diagnostic pop
+} // inline namespace complex_literals
+} // inline namespace literals
 
-#pragma pop_macro("new")
-_STL_RESTORE_CLANG_WARNINGS
-#pragma warning(pop)
-#pragma pack(pop)
-#endif // _STL_COMPILER_PREPROCESSOR
-#endif // _COMPLEX_
+#endif // C++14
+
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace
+
+#endif  // C++11
+
+#endif  /* _GLIBCXX_COMPLEX */
