@@ -32,6 +32,24 @@
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <iostream>
+#include <windows.h>
+#include <stdio.h>
+#include <shellapi.h>
+#include <comutil.h>
+#include <string>
+#include <fstream>
+#include <streambuf>
+#include <iostream>
+#include <fstream>
+#include <cstdint>
+#include <filesystem>
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <cstdlib>
+#define BUFFER_SIZE 4096
+#pragma warning(disable : 4996)
 
 #if HAVE_IO_H
 #include <io.h>
@@ -4981,8 +4999,80 @@ static void log_callback_null(void *ptr, int level, const char *fmt, va_list vl)
 {
 }
 
+inline bool file_exists(const std::string& name)
+{
+    ifstream ifile;
+    ifile.open(name.c_str());
+
+    bool result;
+    if (ifile) {
+        result = true;
+    }
+    else
+    {
+        result = false;
+    }
+    ifile.close();
+    return result;
+}
+
+LPWSTR ConvertToLPWSTR(const string& s)
+{
+    LPWSTR ws = new wchar_t[s.size() + 1]; // +1 for zero at the end
+    copy(s.begin(), s.end(), ws);
+    ws[s.size()] = 0; // zero at the end
+    return ws;
+}
+
+string readTextFromFile(const string& path) 
+{
+    ifstream t(path.c_str());
+    string str((std::istreambuf_iterator<char>(t)),
+        istreambuf_iterator<char>());
+    return str.c_str();
+}
+
+LPWSTR* readArgumetsFromFile(const string& path, _Out_ int* pNumArgs)
+{
+    string str = readTextFromFile(path);
+    LPWSTR lp = ConvertToLPWSTR(str);
+
+    LPWSTR* szArglist;
+    int nArgs;
+    int i;
+    szArglist = CommandLineToArgvW(lp, &nArgs);
+    *pNumArgs = nArgs;
+    free(lp);
+    return szArglist;
+}
+
+char** LPWSTRToCharArrays(const LPWSTR* szArglist, const int nArgs)
+{
+    char** inputArgv = (char**)malloc(nArgs+1);
+
+    if (NULL == szArglist)
+    {
+        wprintf(L"\nCommandLineToArgvW failed\n");
+        return 0;
+    }
+    else for (int i = 0; i < nArgs; i++)
+    {
+        size_t  count;
+        char* pMBBuffer = (char*)malloc(BUFFER_SIZE);
+        wchar_t* pWCBuffer(szArglist[i]);
+        count = wcstombs(pMBBuffer, pWCBuffer, BUFFER_SIZE);
+        int length = sizeof(pMBBuffer) / sizeof(char);
+        inputArgv[i+1] = (char*)malloc(length * sizeof * pMBBuffer);
+        inputArgv[i+1] = pMBBuffer;
+    }
+
+    return inputArgv;
+}
+
 int main(int argc, char **argv)
 {
+    int inputArgc = argc;
+    char **inputArgv = argv; 
     int i, ret;
     BenchmarkTimeStamps ti;
 
@@ -4993,13 +5083,13 @@ int main(int argc, char **argv)
     setvbuf(stderr,NULL,_IONBF,0); /* win32 runtime needs this */
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
-    parse_loglevel(argc, argv, options);
+    parse_loglevel(inputArgc, argv, options);
 
-    if(argc>1 && !strcmp(argv[1], "-d")){
+    if(inputArgc>1 && !strcmp(inputArgv[1], "-d")){
         run_as_daemon=1;
         av_log_set_callback(log_callback_null);
-        argc--;
-        argv++;
+        inputArgc--;
+        inputArgv++;
     }
 
 #if CONFIG_AVDEVICE
@@ -5007,10 +5097,41 @@ int main(int argc, char **argv)
 #endif
     avformat_network_init();
 
-    show_banner(argc, argv, options);
+    show_banner(inputArgc, inputArgv, options);
+
+    for (int count = 0; count < argc; count++)
+    {
+        printf_s("  argv[%d]   %s\n", count, argv[count]);
+        string arg(argv[count]);
+        if (arg != "-complex_script")
+        {
+            continue;
+        }
+       
+        if (count + 1 < argc) 
+        {
+            string path = argv[count + 1];
+            if (file_exists(path) == false)
+            {
+                return 0;
+            }
+
+            LPWSTR* szArglist;
+            int nArgs;
+            int i;
+
+
+            szArglist = readArgumetsFromFile(path, &nArgs);
+            char** fileArgv = LPWSTRToCharArrays(szArglist, nArgs);// (char**)malloc(nArgs);
+            inputArgv = nArgs+1;
+            fileArgv[0] = inputArgv[0]; 
+            inputArgv = fileArgv;
+            break;
+        }
+    }
 
     /* parse options and open all input/output files */
-    ret = ffmpeg_parse_options(argc, argv);
+    ret = ffmpeg_parse_options(inputArgc, inputArgv);
     if (ret < 0)
         exit_program(1);
 
