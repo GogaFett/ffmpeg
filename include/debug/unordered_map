@@ -1,6 +1,6 @@
 // Debugging unordered_map/unordered_multimap implementation -*- C++ -*-
 
-// Copyright (C) 2003-2021 Free Software Foundation, Inc.
+// Copyright (C) 2003-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -81,14 +81,6 @@ namespace __debug
       template<typename _ItT, typename _SeqT>
 	friend class ::__gnu_debug::_Safe_local_iterator;
 
-      // Reference wrapper for base class. See PR libstdc++/90102.
-      struct _Base_ref
-      {
-	_Base_ref(const _Base& __r) : _M_ref(__r) { }
-
-	const _Base& _M_ref;
-      };
-
     public:
       typedef typename _Base::size_type			size_type;
       typedef typename _Base::hasher			hasher;
@@ -129,8 +121,8 @@ namespace __debug
 
       unordered_map(const unordered_map&) = default;
 
-      unordered_map(_Base_ref __x)
-      : _Base(__x._M_ref) { }
+      unordered_map(const _Base& __x)
+      : _Base(__x) { }
 
       unordered_map(unordered_map&&) = default;
 
@@ -545,27 +537,9 @@ namespace __debug
       find(const key_type& __key)
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	iterator
-	find(const _Kt& __k)
-	{ return { _Base::find(__k), this }; }
-#endif
-
       const_iterator
       find(const key_type& __key) const
       { return { _Base::find(__key), this }; }
-
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	const_iterator
-	find(const _Kt& __k) const
-	{ return { _Base::find(__k), this }; }
-#endif
 
       std::pair<iterator, iterator>
       equal_range(const key_type& __key)
@@ -574,36 +548,12 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	std::pair<iterator, iterator>
-	equal_range(const _Kt& __k)
-	{
-	  auto __res = _Base::equal_range(__k);
-	  return { { __res.first, this }, { __res.second, this } };
-	}
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __key) const
       {
 	auto __res = _Base::equal_range(__key);
 	return { { __res.first, this }, { __res.second, this } };
       }
-
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	std::pair<const_iterator, const_iterator>
-	equal_range(const _Kt& __k) const
-	{
-	  auto __res = _Base::equal_range(__k);
-	  return { { __res.first, this }, { __res.second, this } };
-	}
-#endif
 
       size_type
       erase(const key_type& __key)
@@ -672,7 +622,7 @@ namespace __debug
 	  [__victim](_Base_const_iterator __it) { return __it == __victim; });
 	this->_M_invalidate_local_if(
 	  [__victim](_Base_const_local_iterator __it)
-	  { return __it == __victim; });
+	  { return __it._M_curr() == __victim._M_cur; });
       }
 
       _Base_iterator
@@ -827,14 +777,6 @@ namespace __debug
       template<typename _ItT, typename _SeqT>
 	friend class ::__gnu_debug::_Safe_local_iterator;
 
-      // Reference wrapper for base class. See PR libstdc++/90102.
-      struct _Base_ref
-      {
-	_Base_ref(const _Base& __r) : _M_ref(__r) { }
-
-	const _Base& _M_ref;
-      };
-
     public:
       typedef typename _Base::size_type			size_type;
       typedef typename _Base::hasher			hasher;
@@ -875,8 +817,8 @@ namespace __debug
 
       unordered_multimap(const unordered_multimap&) = default;
 
-      unordered_multimap(_Base_ref __x)
-      : _Base(__x._M_ref) { }
+      unordered_multimap(const _Base& __x)
+      : _Base(__x) { }
 
       unordered_multimap(unordered_multimap&&) = default;
 
@@ -1199,27 +1141,9 @@ namespace __debug
       find(const key_type& __key)
       { return { _Base::find(__key), this }; }
 
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	iterator
-	find(const _Kt& __k)
-	{ return { _Base::find(__k), this }; }
-#endif
-
       const_iterator
       find(const key_type& __key) const
       { return { _Base::find(__key), this }; }
-
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	const_iterator
-	find(const _Kt& __k) const
-	{ return { _Base::find(__k), this }; }
-#endif
 
       std::pair<iterator, iterator>
       equal_range(const key_type& __key)
@@ -1228,36 +1152,12 @@ namespace __debug
 	return { { __res.first, this }, { __res.second, this } };
       }
 
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	std::pair<iterator, iterator>
-	equal_range(const _Kt& __k)
-	{
-	  auto __res = _Base::equal_range(__k);
-	  return { { __res.first, this }, { __res.second, this } };
-	}
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __key) const
       {
 	auto __res = _Base::equal_range(__key);
 	return { { __res.first, this }, { __res.second, this } };
       }
-
-#if __cplusplus > 201703L
-      template<typename _Kt,
-	       typename = std::__has_is_transparent_t<_Hash, _Kt>,
-	       typename = std::__has_is_transparent_t<_Pred, _Kt>>
-	std::pair<const_iterator, const_iterator>
-	equal_range(const _Kt& __k) const
-	{
-	  auto __res = _Base::equal_range(__k);
-	  return { { __res.first, this }, { __res.second, this } };
-	}
-#endif
 
       size_type
       erase(const key_type& __key)
@@ -1330,7 +1230,7 @@ namespace __debug
 	  [__victim](_Base_const_iterator __it) { return __it == __victim; });
 	this->_M_invalidate_local_if(
 	  [__victim](_Base_const_local_iterator __it)
-	  { return __it == __victim; });
+	  { return __it._M_curr() == __victim._M_cur; });
       }
 
       _Base_iterator

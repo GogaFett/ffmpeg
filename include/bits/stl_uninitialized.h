@@ -1,6 +1,6 @@
 // Raw memory manipulators -*- C++ -*-
 
-// Copyright (C) 2001-2021 Free Software Foundation, Inc.
+// Copyright (C) 2001-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -56,16 +56,15 @@
 #ifndef _STL_UNINITIALIZED_H
 #define _STL_UNINITIALIZED_H 1
 
+#if __cplusplus > 201402L
+#include <bits/stl_pair.h>
+#endif
+
 #if __cplusplus >= 201103L
 #include <type_traits>
 #endif
 
-#include <bits/stl_algobase.h>    // copy
-#include <ext/alloc_traits.h>     // __alloc_traits
-
-#if __cplusplus >= 201703L
-#include <bits/stl_pair.h>
-#endif
+#include <ext/alloc_traits.h>
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
@@ -274,26 +273,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     {
       typedef typename iterator_traits<_ForwardIterator>::value_type
 	_ValueType;
-
-      // Trivial types do not need a constructor to begin their lifetime,
-      // so try to use std::fill_n to benefit from its memmove optimization.
-      // For arbitrary class types and floating point types we can't assume
-      // that __n > 0 and std::__size_to_integer(__n) > 0 are equivalent,
-      // so only use std::fill_n when _Size is already an integral type.
 #if __cplusplus < 201103L
-      const bool __can_fill = __is_integer<_Size>::__value;
+      const bool __assignable = true;
 #else
-      // Trivial types can have deleted copy constructor, but the std::fill_n
+      // Trivial types can have deleted copy constructor, but the std::fill
       // optimization that uses memmove would happily "copy" them anyway.
       static_assert(is_constructible<_ValueType, const _Tp&>::value,
 	  "result type must be constructible from input type");
 
-      // Trivial types can have deleted assignment, so using std::fill_n
-      // would be ill-formed. Require assignability before using std::fill_n:
-      constexpr bool __can_fill
-	= __and_<is_integral<_Size>, is_copy_assignable<_ValueType>>::value;
+      // Trivial types can have deleted assignment, so using std::fill
+      // would be ill-formed. Require assignability before using std::fill:
+      const bool __assignable = is_copy_assignable<_ValueType>::value;
 #endif
-      return __uninitialized_fill_n<__is_trivial(_ValueType) && __can_fill>::
+      return __uninitialized_fill_n<__is_trivial(_ValueType) && __assignable>::
 	__uninit_fill_n(__first, __n, __x);
     }
 
@@ -554,14 +546,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
         static void
         __uninit_default(_ForwardIterator __first, _ForwardIterator __last)
         {
-	  if (__first == __last)
-	    return;
+	  typedef typename iterator_traits<_ForwardIterator>::value_type
+	    _ValueType;
 
-	  typename iterator_traits<_ForwardIterator>::value_type* __val
-	    = std::__addressof(*__first);
-	  std::_Construct(__val);
-	  if (++__first != __last)
-	    std::fill(__first, __last, *__val);
+	  std::fill(__first, __last, _ValueType());
 	}
     };
 
@@ -594,20 +582,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
         static _ForwardIterator
         __uninit_default_n(_ForwardIterator __first, _Size __n)
         {
-	  if (__n > 0)
-	    {
-	      typename iterator_traits<_ForwardIterator>::value_type* __val
-		= std::__addressof(*__first);
-	      std::_Construct(__val);
-	      ++__first;
-	      __first = std::fill_n(__first, __n - 1, *__val);
-	    }
-	  return __first;
+	  typedef typename iterator_traits<_ForwardIterator>::value_type
+	    _ValueType;
+
+	  return std::fill_n(__first, __n, _ValueType());
 	}
     };
 
   // __uninitialized_default
-  // Fills [first, last) with value-initialized value_types.
+  // Fills [first, last) with std::distance(first, last) default
+  // constructed value_types(s).
   template<typename _ForwardIterator>
     inline void
     __uninitialized_default(_ForwardIterator __first,
@@ -624,26 +608,25 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   // __uninitialized_default_n
-  // Fills [first, first + n) with value-initialized value_types.
+  // Fills [first, first + n) with n default constructed value_type(s).
   template<typename _ForwardIterator, typename _Size>
     inline _ForwardIterator
     __uninitialized_default_n(_ForwardIterator __first, _Size __n)
     {
       typedef typename iterator_traits<_ForwardIterator>::value_type
 	_ValueType;
-      // See uninitialized_fill_n for the conditions for using std::fill_n.
-      constexpr bool __can_fill
-	= __and_<is_integral<_Size>, is_copy_assignable<_ValueType>>::value;
+      // trivial types can have deleted assignment
+      const bool __assignable = is_copy_assignable<_ValueType>::value;
 
       return __uninitialized_default_n_1<__is_trivial(_ValueType)
-					 && __can_fill>::
+				       && __assignable>::
 	__uninit_default_n(__first, __n);
     }
 
 
   // __uninitialized_default_a
-  // Fills [first, last) with value_types constructed by the allocator
-  // alloc, with no arguments passed to the construct call.
+  // Fills [first, last) with std::distance(first, last) default
+  // constructed value_types(s), constructed with the allocator alloc.
   template<typename _ForwardIterator, typename _Allocator>
     void
     __uninitialized_default_a(_ForwardIterator __first,
@@ -673,8 +656,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
 
   // __uninitialized_default_n_a
-  // Fills [first, first + n) with value_types constructed by the allocator
-  // alloc, with no arguments passed to the construct call.
+  // Fills [first, first + n) with n default constructed value_types(s),
+  // constructed with the allocator alloc.
   template<typename _ForwardIterator, typename _Size, typename _Allocator>
     _ForwardIterator
     __uninitialized_default_n_a(_ForwardIterator __first, _Size __n, 
@@ -695,8 +678,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	}
     }
 
-  // __uninitialized_default_n_a specialization for std::allocator,
-  // which ignores the allocator and value-initializes the elements.
   template<typename _ForwardIterator, typename _Size, typename _Tp>
     inline _ForwardIterator
     __uninitialized_default_n_a(_ForwardIterator __first, _Size __n, 
@@ -768,7 +749,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     };
 
   // __uninitialized_default_novalue
-  // Fills [first, last) with default-initialized value_types.
+  // Fills [first, last) with std::distance(first, last) default-initialized
+  // value_types(s).
   template<typename _ForwardIterator>
     inline void
     __uninitialized_default_novalue(_ForwardIterator __first,
@@ -782,8 +764,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	__uninit_default_novalue(__first, __last);
     }
 
-  // __uninitialized_default_novalue_n
-  // Fills [first, first + n) with default-initialized value_types.
+  // __uninitialized_default_n
+  // Fills [first, first + n) with n default-initialized value_type(s).
   template<typename _ForwardIterator, typename _Size>
     inline _ForwardIterator
     __uninitialized_default_novalue_n(_ForwardIterator __first, _Size __n)

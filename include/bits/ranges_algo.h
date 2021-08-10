@@ -1,6 +1,6 @@
 // Core algorithmic facilities -*- C++ -*-
 
-// Copyright (C) 2020-2021 Free Software Foundation, Inc.
+// Copyright (C) 2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,6 @@
 #if __cplusplus > 201703L
 
 #include <bits/ranges_algobase.h>
-#include <bits/ranges_util.h>
 #include <bits/uniform_int_dist.h> // concept uniform_random_bit_generator
 
 #if __cpp_lib_concepts
@@ -1396,13 +1395,6 @@ namespace ranges
 
   inline constexpr __unique_fn unique{};
 
-  namespace __detail
-  {
-    template<typename _Out, typename _Tp>
-      concept __can_reread_output = input_iterator<_Out>
-	&& same_as<_Tp, iter_value_t<_Out>>;
-  }
-
   template<typename _Iter, typename _Out>
     using unique_copy_result = in_out_result<_Iter, _Out>;
 
@@ -1414,7 +1406,8 @@ namespace ranges
 	       projected<_Iter, _Proj>> _Comp = ranges::equal_to>
       requires indirectly_copyable<_Iter, _Out>
 	&& (forward_iterator<_Iter>
-	    || __detail::__can_reread_output<_Out, iter_value_t<_Iter>>
+	    || (input_iterator<_Out>
+		&& same_as<iter_value_t<_Iter>, iter_value_t<_Out>>)
 	    || indirectly_copyable_storable<_Iter, _Out>)
       constexpr unique_copy_result<_Iter, _Out>
       operator()(_Iter __first, _Sent __last, _Out __result,
@@ -1438,7 +1431,8 @@ namespace ranges
 		}
 	    return {__next, std::move(++__result)};
 	  }
-	else if constexpr (__detail::__can_reread_output<_Out, iter_value_t<_Iter>>)
+	else if constexpr (input_iterator<_Out>
+			   && same_as<iter_value_t<_Iter>, iter_value_t<_Out>>)
 	  {
 	    *__result = *__first;
 	    while (++__first != __last)
@@ -1472,7 +1466,8 @@ namespace ranges
 	       projected<iterator_t<_Range>, _Proj>> _Comp = ranges::equal_to>
       requires indirectly_copyable<iterator_t<_Range>, _Out>
 	&& (forward_iterator<iterator_t<_Range>>
-	    || __detail::__can_reread_output<_Out, range_value_t<_Range>>
+	    || (input_iterator<_Out>
+		&& same_as<range_value_t<_Range>, iter_value_t<_Out>>)
 	    || indirectly_copyable_storable<iterator_t<_Range>, _Out>)
       constexpr unique_copy_result<borrowed_iterator_t<_Range>, _Out>
       operator()(_Range&& __r, _Out __result,
@@ -1765,9 +1760,8 @@ namespace ranges
 	    // FIXME: Forwarding to std::sample here requires computing __lasti
 	    // which may take linear time.
 	    auto __lasti = ranges::next(__first, __last);
-	    return _GLIBCXX_STD_A::
-	      sample(std::move(__first), std::move(__lasti), std::move(__out),
-		     __n, std::forward<_Gen>(__g));
+	    return std::sample(std::move(__first), std::move(__lasti),
+			       std::move(__out), __n, std::forward<_Gen>(__g));
 	  }
 	else
 	  {
@@ -2026,8 +2020,8 @@ namespace ranges
 		 _Comp __comp = {}, _Proj __proj = {}) const
       {
 	auto __lasti = ranges::next(__first, __last);
-	_GLIBCXX_STD_A::sort(std::move(__first), __lasti,
-			     __detail::__make_comp_proj(__comp, __proj));
+	std::sort(std::move(__first), __lasti,
+		  __detail::__make_comp_proj(__comp, __proj));
 	return __lasti;
       }
 
@@ -2270,9 +2264,8 @@ namespace ranges
 		 _Comp __comp = {}, _Proj __proj = {}) const
       {
 	auto __lasti = ranges::next(__first, __last);
-	_GLIBCXX_STD_A::nth_element(std::move(__first), std::move(__nth),
-				    __lasti,
-				    __detail::__make_comp_proj(__comp, __proj));
+	std::nth_element(std::move(__first), std::move(__nth), __lasti,
+			 __detail::__make_comp_proj(__comp, __proj));
 	return __lasti;
       }
 
@@ -3287,59 +3280,26 @@ namespace ranges
     template<input_range _Range, typename _Proj = identity,
 	     indirect_strict_weak_order<projected<iterator_t<_Range>, _Proj>>
 	       _Comp = ranges::less>
-      requires indirectly_copyable_storable<iterator_t<_Range>, range_value_t<_Range>*>
+      requires indirectly_copyable_storable<iterator_t<_Range>,
+      range_value_t<_Range>*>
       constexpr minmax_result<range_value_t<_Range>>
       operator()(_Range&& __r, _Comp __comp = {}, _Proj __proj = {}) const
       {
 	auto __first = ranges::begin(__r);
 	auto __last = ranges::end(__r);
 	__glibcxx_assert(__first != __last);
-	auto __comp_proj = __detail::__make_comp_proj(__comp, __proj);
 	minmax_result<range_value_t<_Range>> __result = {*__first, *__first};
-	if (++__first == __last)
-	  return __result;
-	else
-	  {
-	    // At this point __result.min == __result.max, so a single
-	    // comparison with the next element suffices.
-	    auto&& __val = *__first;
-	    if (__comp_proj(__val, __result.min))
-	      __result.min = std::forward<decltype(__val)>(__val);
-	    else
-	      __result.max = std::forward<decltype(__val)>(__val);
-	  }
 	while (++__first != __last)
 	  {
-	    // Now process two elements at a time so that we perform at most
-	    // 1 + 3*(N-2)/2 comparisons in total (each of the (N-2)/2
-	    // iterations of this loop performs three comparisons).
-	    range_value_t<_Range> __val1 = *__first;
-	    if (++__first == __last)
-	      {
-		// N is odd; in this final iteration, we perform at most two
-		// comparisons, for a total of 1 + 3*(N-3)/2 + 2 comparisons,
-		// which is not more than 3*N/2, as required.
-		if (__comp_proj(__val1, __result.min))
-		  __result.min = std::move(__val1);
-		else if (!__comp_proj(__val1, __result.max))
-		  __result.max = std::move(__val1);
-		break;
-	      }
-	    auto&& __val2 = *__first;
-	    if (!__comp_proj(__val2, __val1))
-	      {
-		if (__comp_proj(__val1, __result.min))
-		  __result.min = std::move(__val1);
-		if (!__comp_proj(__val2, __result.max))
-		  __result.max = std::forward<decltype(__val2)>(__val2);
-	      }
-	    else
-	      {
-		if (__comp_proj(__val2, __result.min))
-		  __result.min = std::forward<decltype(__val2)>(__val2);
-		if (!__comp_proj(__val1, __result.max))
-		  __result.max = std::move(__val1);
-	      }
+	    auto __tmp = *__first;
+	    if (std::__invoke(__comp,
+			      std::__invoke(__proj, __tmp),
+			      std::__invoke(__proj, __result.min)))
+	      __result.min = std::move(__tmp);
+	    if (!(bool)std::__invoke(__comp,
+				     std::__invoke(__proj, __tmp),
+				     std::__invoke(__proj, __result.max)))
+	      __result.max = std::move(__tmp);
 	  }
 	return __result;
       }
@@ -3445,50 +3405,21 @@ namespace ranges
       operator()(_Iter __first, _Sent __last,
 		 _Comp __comp = {}, _Proj __proj = {}) const
       {
-	auto __comp_proj = __detail::__make_comp_proj(__comp, __proj);
+	if (__first == __last)
+	  return {__first, __first};
+
 	minmax_element_result<_Iter> __result = {__first, __first};
-	if (__first == __last || ++__first == __last)
-	  return __result;
-	else
+	auto __i = __first;
+	while (++__i != __last)
 	  {
-	    // At this point __result.min == __result.max, so a single
-	    // comparison with the next element suffices.
-	    if (__comp_proj(*__first, *__result.min))
-	      __result.min = __first;
-	    else
-	      __result.max = __first;
-	  }
-	while (++__first != __last)
-	  {
-	    // Now process two elements at a time so that we perform at most
-	    // 1 + 3*(N-2)/2 comparisons in total (each of the (N-2)/2
-	    // iterations of this loop performs three comparisons).
-	    auto __prev = __first;
-	    if (++__first == __last)
-	      {
-		// N is odd; in this final iteration, we perform at most two
-		// comparisons, for a total of 1 + 3*(N-3)/2 + 2 comparisons,
-		// which is not more than 3*N/2, as required.
-		if (__comp_proj(*__prev, *__result.min))
-		  __result.min = __prev;
-		else if (!__comp_proj(*__prev, *__result.max))
-		  __result.max = __prev;
-		break;
-	      }
-	    if (!__comp_proj(*__first, *__prev))
-	      {
-		if (__comp_proj(*__prev, *__result.min))
-		  __result.min = __prev;
-		if (!__comp_proj(*__first, *__result.max))
-		  __result.max = __first;
-	      }
-	    else
-	      {
-		if (__comp_proj(*__first, *__result.min))
-		  __result.min = __first;
-		if (!__comp_proj(*__prev, *__result.max))
-		  __result.max = __prev;
-	      }
+	    if (std::__invoke(__comp,
+			      std::__invoke(__proj, *__i),
+			      std::__invoke(__proj, *__result.min)))
+	      __result.min = __i;
+	    if (!(bool)std::__invoke(__comp,
+				     std::__invoke(__proj, *__i),
+				     std::__invoke(__proj, *__result.max)))
+	      __result.max = __i;
 	  }
 	return __result;
       }
@@ -3815,7 +3746,8 @@ namespace ranges
 		  // i.e. we are shifting out at least half of the range.  In
 		  // this case we can safely perform the shift with a single
 		  // move.
-		  std::move(std::move(__first), std::move(__dest_head), __result);
+		  std::move(std::move(__first), std::move(__dest_head),
+			    std::move(__result));
 		  return __result;
 		}
 	      ++__dest_head;

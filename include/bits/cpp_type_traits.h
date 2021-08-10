@@ -1,6 +1,6 @@
 // The  -*- C++ -*- type traits classes for internal use in libstdc++
 
-// Copyright (C) 2000-2021 Free Software Foundation, Inc.
+// Copyright (C) 2000-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -162,7 +162,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       typedef __true_type __type;
     };
 
-# ifdef __WCHAR_TYPE__
+# ifdef _GLIBCXX_USE_WCHAR_T
   template<>
     struct __is_integer<wchar_t>
     {
@@ -363,7 +363,7 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
       typedef __true_type __type;
     };
 
-#ifdef __WCHAR_TYPE__
+#ifdef _GLIBCXX_USE_WCHAR_T
   template<>
     struct __is_char<wchar_t>
     {
@@ -484,17 +484,8 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
 
   // Whether memcmp can be used to determine ordering for a type
   // e.g. in std::lexicographical_compare or three-way comparisons.
-  // True for unsigned integer-like types where comparing each byte in turn
-  // as an unsigned char yields the right result. This is true for all
-  // unsigned integers on big endian targets, but only unsigned narrow
-  // character types (and std::byte) on little endian targets.
-  template<typename _Tp, bool _TreatAsBytes =
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	__is_integer<_Tp>::__value
-#else
-	__is_byte<_Tp>::__value
-#endif
-    >
+  // True for unsigned narrow character types (and std::byte).
+  template<typename _Tp, bool _TreatAsBytes = __is_byte<_Tp>::__value>
     struct __is_memcmp_ordered
     {
       static const bool __value = _Tp(-1) > _Tp(1); // is unsigned
@@ -521,13 +512,6 @@ __INT_N(__GLIBCXX_TYPE_INT_N_3)
     };
 
 #if __cplusplus >= 201703L
-#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-  // std::byte is not an integer, but it can be compared using memcmp.
-  template<>
-    struct __is_memcmp_ordered<std::byte, false>
-    { static constexpr bool __value = true; };
-#endif
-
   // std::byte can only be compared to itself, not to other types.
   template<>
     struct __is_memcmp_ordered_with<std::byte, std::byte, true>

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005-2021 Free Software Foundation, Inc.
+// Copyright (C) 2005-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -938,11 +938,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_GLIBCXX_USE_NOEXCEPT { }
 
       ~throw_allocator_limit() _GLIBCXX_USE_NOEXCEPT { }
-
-#if __cplusplus >= 201103L
-      throw_allocator_limit&
-      operator=(const throw_allocator_limit&) = default;
-#endif
     };
 
 #ifdef _GLIBCXX_USE_C99_STDINT_TR1
@@ -965,11 +960,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	_GLIBCXX_USE_NOEXCEPT { }
 
       ~throw_allocator_random() _GLIBCXX_USE_NOEXCEPT { }
-
-#if __cplusplus >= 201103L
-      throw_allocator_random&
-      operator=(const throw_allocator_random&) = default;
-#endif
     };
 #endif // _GLIBCXX_USE_C99_STDINT_TR1
 

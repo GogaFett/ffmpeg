@@ -1,6 +1,6 @@
 // unordered_map implementation -*- C++ -*-
 
-// Copyright (C) 2010-2021 Free Software Foundation, Inc.
+// Copyright (C) 2010-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -467,20 +467,39 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  Insertion requires amortized constant time.
        */
       template <typename... _Args>
-	pair<iterator, bool>
-	try_emplace(const key_type& __k, _Args&&... __args)
-	{
-	  return _M_h.try_emplace(cend(), __k, std::forward<_Args>(__args)...);
-	}
+        pair<iterator, bool>
+        try_emplace(const key_type& __k, _Args&&... __args)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              __i = emplace(std::piecewise_construct,
+                            std::forward_as_tuple(__k),
+                            std::forward_as_tuple(
+                              std::forward<_Args>(__args)...))
+                .first;
+              return {__i, true};
+            }
+          return {__i, false};
+        }
 
       // move-capable overload
       template <typename... _Args>
-	pair<iterator, bool>
-	try_emplace(key_type&& __k, _Args&&... __args)
-	{
-	  return _M_h.try_emplace(cend(), std::move(__k),
-				  std::forward<_Args>(__args)...);
-	}
+        pair<iterator, bool>
+        try_emplace(key_type&& __k, _Args&&... __args)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              __i = emplace(std::piecewise_construct,
+                            std::forward_as_tuple(std::move(__k)),
+                            std::forward_as_tuple(
+                              std::forward<_Args>(__args)...))
+                .first;
+              return {__i, true};
+            }
+          return {__i, false};
+        }
 
       /**
        *  @brief Attempts to build and insert a std::pair into the
@@ -511,22 +530,32 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  Insertion requires amortized constant time.
        */
       template <typename... _Args>
-	iterator
-	try_emplace(const_iterator __hint, const key_type& __k,
-		    _Args&&... __args)
-	{
-	  return _M_h.try_emplace(__hint, __k,
-				  std::forward<_Args>(__args)...).first;
-	}
+        iterator
+        try_emplace(const_iterator __hint, const key_type& __k,
+                    _Args&&... __args)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            __i = emplace_hint(__hint, std::piecewise_construct,
+                               std::forward_as_tuple(__k),
+                               std::forward_as_tuple(
+                                 std::forward<_Args>(__args)...));
+          return __i;
+        }
 
       // move-capable overload
       template <typename... _Args>
-	iterator
-	try_emplace(const_iterator __hint, key_type&& __k, _Args&&... __args)
-	{
-	  return _M_h.try_emplace(__hint, std::move(__k),
-				  std::forward<_Args>(__args)...).first;
-	}
+        iterator
+        try_emplace(const_iterator __hint, key_type&& __k, _Args&&... __args)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            __i = emplace_hint(__hint, std::piecewise_construct,
+                               std::forward_as_tuple(std::move(__k)),
+                               std::forward_as_tuple(
+                                 std::forward<_Args>(__args)...));
+          return __i;
+        }
 #endif // C++17
 
       ///@{
@@ -650,27 +679,39 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  Insertion requires amortized constant time.
        */
       template <typename _Obj>
-	pair<iterator, bool>
-	insert_or_assign(const key_type& __k, _Obj&& __obj)
-	{
-	  auto __ret = _M_h.try_emplace(cend(), __k,
-					std::forward<_Obj>(__obj));
-	  if (!__ret.second)
-	    __ret.first->second = std::forward<_Obj>(__obj);
-	  return __ret;
-	}
+        pair<iterator, bool>
+        insert_or_assign(const key_type& __k, _Obj&& __obj)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              __i = emplace(std::piecewise_construct,
+                            std::forward_as_tuple(__k),
+                            std::forward_as_tuple(std::forward<_Obj>(__obj)))
+                .first;
+              return {__i, true};
+            }
+          (*__i).second = std::forward<_Obj>(__obj);
+          return {__i, false};
+        }
 
       // move-capable overload
       template <typename _Obj>
-	pair<iterator, bool>
-	insert_or_assign(key_type&& __k, _Obj&& __obj)
-	{
-	  auto __ret = _M_h.try_emplace(cend(), std::move(__k),
-					std::forward<_Obj>(__obj));
-	  if (!__ret.second)
-	    __ret.first->second = std::forward<_Obj>(__obj);
-	  return __ret;
-	}
+        pair<iterator, bool>
+        insert_or_assign(key_type&& __k, _Obj&& __obj)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              __i = emplace(std::piecewise_construct,
+                            std::forward_as_tuple(std::move(__k)),
+                            std::forward_as_tuple(std::forward<_Obj>(__obj)))
+                .first;
+              return {__i, true};
+            }
+          (*__i).second = std::forward<_Obj>(__obj);
+          return {__i, false};
+        }
 
       /**
        *  @brief Attempts to insert a std::pair into the %unordered_map.
@@ -699,27 +740,38 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
        *  Insertion requires amortized constant time.
        */
       template <typename _Obj>
-	iterator
-	insert_or_assign(const_iterator __hint, const key_type& __k,
-			 _Obj&& __obj)
-	{
-	  auto __ret = _M_h.try_emplace(__hint, __k, std::forward<_Obj>(__obj));
-	  if (!__ret.second)
-	    __ret.first->second = std::forward<_Obj>(__obj);
-	  return __ret.first;
-	}
+        iterator
+        insert_or_assign(const_iterator __hint, const key_type& __k,
+                         _Obj&& __obj)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              return emplace_hint(__hint, std::piecewise_construct,
+                                  std::forward_as_tuple(__k),
+                                  std::forward_as_tuple(
+                                    std::forward<_Obj>(__obj)));
+            }
+          (*__i).second = std::forward<_Obj>(__obj);
+          return __i;
+        }
 
       // move-capable overload
       template <typename _Obj>
-	iterator
-	insert_or_assign(const_iterator __hint, key_type&& __k, _Obj&& __obj)
-	{
-	  auto __ret = _M_h.try_emplace(__hint, std::move(__k),
-					std::forward<_Obj>(__obj));
-	  if (!__ret.second)
-	    __ret.first->second = std::forward<_Obj>(__obj);
-	  return __ret.first;
-	}
+        iterator
+        insert_or_assign(const_iterator __hint, key_type&& __k, _Obj&& __obj)
+        {
+          iterator __i = find(__k);
+          if (__i == end())
+            {
+              return emplace_hint(__hint, std::piecewise_construct,
+                                  std::forward_as_tuple(std::move(__k)),
+                                  std::forward_as_tuple(
+                                    std::forward<_Obj>(__obj)));
+            }
+          (*__i).second = std::forward<_Obj>(__obj);
+          return __i;
+        }
 #endif
 
       ///@{
@@ -868,26 +920,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_h.find(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x) -> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
-
       const_iterator
       find(const key_type& __x) const
       { return _M_h.find(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x) const -> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
       ///@}
 
-      ///@{
       /**
        *  @brief  Finds the number of elements.
        *  @param  __x  Key to count.
@@ -902,15 +939,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return _M_h.count(__x); }
 
 #if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	count(const _Kt& __x) const -> decltype(_M_h._M_count_tr(__x))
-	{ return _M_h._M_count_tr(__x); }
-#endif
-      ///@}
-
-#if __cplusplus > 201703L
-      ///@{
       /**
        *  @brief  Finds whether an element with the given key exists.
        *  @param  __x  Key of elements to be located.
@@ -919,13 +947,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       bool
       contains(const key_type& __x) const
       { return _M_h.find(__x) != _M_h.end(); }
-
-      template<typename _Kt>
-	auto
-	contains(const _Kt& __x) const
-	-> decltype(_M_h._M_find_tr(__x), void(), true)
-	{ return _M_h._M_find_tr(__x) != _M_h.end(); }
-      ///@}
 #endif
 
       ///@{
@@ -941,25 +962,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_h.equal_range(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x)
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __x) const
       { return _M_h.equal_range(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x) const
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
       ///@}
 
       ///@{
@@ -1811,26 +1816,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_h.find(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x) -> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
-
       const_iterator
       find(const key_type& __x) const
       { return _M_h.find(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x) const -> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
       ///@}
 
-      ///@{
       /**
        *  @brief  Finds the number of elements.
        *  @param  __x  Key to count.
@@ -1841,15 +1831,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return _M_h.count(__x); }
 
 #if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	count(const _Kt& __x) const -> decltype(_M_h._M_count_tr(__x))
-	{ return _M_h._M_count_tr(__x); }
-#endif
-      ///@}
-
-#if __cplusplus > 201703L
-      ///@{
       /**
        *  @brief  Finds whether an element with the given key exists.
        *  @param  __x  Key of elements to be located.
@@ -1858,13 +1839,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       bool
       contains(const key_type& __x) const
       { return _M_h.find(__x) != _M_h.end(); }
-
-      template<typename _Kt>
-	auto
-	contains(const _Kt& __x) const
-	-> decltype(_M_h._M_find_tr(__x), void(), true)
-	{ return _M_h._M_find_tr(__x) != _M_h.end(); }
-      ///@}
 #endif
 
       ///@{
@@ -1878,25 +1852,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_h.equal_range(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x)
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __x) const
       { return _M_h.equal_range(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x) const
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
       ///@}
 
       // bucket interface.

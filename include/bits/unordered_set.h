@@ -1,6 +1,6 @@
 // unordered_set implementation -*- C++ -*-
 
-// Copyright (C) 2010-2021 Free Software Foundation, Inc.
+// Copyright (C) 2010-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -650,28 +650,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_h.find(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __k)
-	-> decltype(_M_h._M_find_tr(__k))
-	{ return _M_h._M_find_tr(__k); }
-#endif
-
       const_iterator
       find(const key_type& __x) const
       { return _M_h.find(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __k) const
-	-> decltype(_M_h._M_find_tr(__k))
-	{ return _M_h._M_find_tr(__k); }
-#endif
       ///@}
 
-      ///@{
       /**
        *  @brief  Finds the number of elements.
        *  @param  __x  Element to located.
@@ -686,16 +669,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return _M_h.count(__x); }
 
 #if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	count(const _Kt& __k) const
-	-> decltype(_M_h._M_count_tr(__k))
-	{ return _M_h._M_count_tr(__k); }
-#endif
-      ///@}
-
-#if __cplusplus > 201703L
-      ///@{
       /**
        *  @brief  Finds whether an element with the given key exists.
        *  @param  __x  Key of elements to be located.
@@ -704,13 +677,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       bool
       contains(const key_type& __x) const
       { return _M_h.find(__x) != _M_h.end(); }
-
-      template<typename _Kt>
-	auto
-	contains(const _Kt& __k) const
-	-> decltype(_M_h._M_find_tr(__k), void(), true)
-	{ return _M_h._M_find_tr(__k) != _M_h.end(); }
-      ///@}
 #endif
 
       ///@{
@@ -726,25 +692,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_h.equal_range(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __k)
-	-> decltype(_M_h._M_equal_range_tr(__k))
-	{ return _M_h._M_equal_range_tr(__k); }
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __x) const
       { return _M_h.equal_range(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __k) const
-	-> decltype(_M_h._M_equal_range_tr(__k))
-	{ return _M_h._M_equal_range_tr(__k); }
-#endif
       ///@}
 
       // bucket interface.
@@ -1500,28 +1450,11 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       find(const key_type& __x)
       { return _M_h.find(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x)
-	-> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
-
       const_iterator
       find(const key_type& __x) const
       { return _M_h.find(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	find(const _Kt& __x) const
-	-> decltype(_M_h._M_find_tr(__x))
-	{ return _M_h._M_find_tr(__x); }
-#endif
       ///@}
 
-      ///@{
       /**
        *  @brief  Finds the number of elements.
        *  @param  __x  Element to located.
@@ -1532,15 +1465,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       { return _M_h.count(__x); }
 
 #if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	count(const _Kt& __x) const -> decltype(_M_h._M_count_tr(__x))
-	{ return _M_h._M_count_tr(__x); }
-#endif
-      ///@}
-
-#if __cplusplus > 201703L
-      ///@{
       /**
        *  @brief  Finds whether an element with the given key exists.
        *  @param  __x  Key of elements to be located.
@@ -1549,13 +1473,6 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       bool
       contains(const key_type& __x) const
       { return _M_h.find(__x) != _M_h.end(); }
-
-      template<typename _Kt>
-	auto
-	contains(const _Kt& __x) const
-	-> decltype(_M_h._M_find_tr(__x), void(), true)
-	{ return _M_h._M_find_tr(__x) != _M_h.end(); }
-      ///@}
 #endif
 
       ///@{
@@ -1569,25 +1486,9 @@ _GLIBCXX_BEGIN_NAMESPACE_CONTAINER
       equal_range(const key_type& __x)
       { return _M_h.equal_range(__x); }
 
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x)
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
-
       std::pair<const_iterator, const_iterator>
       equal_range(const key_type& __x) const
       { return _M_h.equal_range(__x); }
-
-#if __cplusplus > 201703L
-      template<typename _Kt>
-	auto
-	equal_range(const _Kt& __x) const
-	-> decltype(_M_h._M_equal_range_tr(__x))
-	{ return _M_h._M_equal_range_tr(__x); }
-#endif
       ///@}
 
       // bucket interface.

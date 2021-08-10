@@ -1,6 +1,6 @@
 // Debugging set implementation -*- C++ -*-
 
-// Copyright (C) 2003-2021 Free Software Foundation, Inc.
+// Copyright (C) 2003-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -57,16 +57,6 @@ namespace __debug
 
       template<typename _ItT, typename _SeqT, typename _CatT>
 	friend class ::__gnu_debug::_Safe_iterator;
-
-      // Reference wrapper for base class. Disambiguates set(const _Base&)
-      // from copy constructor by requiring a user-defined conversion.
-      // See PR libstdc++/90102.
-      struct _Base_ref
-      {
-	_Base_ref(const _Base& __r) : _M_ref(__r) { }
-
-	const _Base& _M_ref;
-      };
 
     public:
       // types:
@@ -147,8 +137,8 @@ namespace __debug
 		__gnu_debug::__base(__last),
 		__comp, __a) { }
 
-      set(_Base_ref __x)
-      : _Base(__x._M_ref) { }
+      set(const _Base& __x)
+      : _Base(__x) { }
 
 #if __cplusplus < 201103L
       set&

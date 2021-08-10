@@ -1,6 +1,6 @@
 // <experimental/internet> -*- C++ -*-
 
-// Copyright (C) 2015-2021 Free Software Foundation, Inc.
+// Copyright (C) 2015-2020 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -101,17 +101,17 @@ namespace ip
     return __c;
   }
 
-  inline error_code make_error_code(resolver_errc __e) noexcept
+  error_code make_error_code(resolver_errc __e) noexcept
   { return error_code(static_cast<int>(__e), resolver_category()); }
 
-  inline error_condition make_error_condition(resolver_errc __e) noexcept
+  error_condition make_error_condition(resolver_errc __e) noexcept
   { return error_condition(static_cast<int>(__e), resolver_category()); }
 
   /// @}
 #endif
 
-  using port_type = uint_least16_t;	///< Type used for port numbers.
-  using scope_id_type = uint_least32_t;	///< Type used for IPv6 scope IDs.
+  typedef uint_least16_t port_type;	///< Type used for port numbers.
+  typedef uint_least32_t scope_id_type;	///< Type used for IPv6 scope IDs.
 
   /// Convenience alias for constraining allocators for strings.
   template<typename _Alloc>
@@ -133,7 +133,7 @@ namespace ip
   {
   public:
     // types:
-    using uint_type = uint_least32_t;
+    typedef uint_least32_t uint_type;
 
     struct bytes_type : array<unsigned char, 4>
     {
@@ -938,11 +938,11 @@ namespace ip
   {
   public:
     // types:
-    using value_type = address_v4;
-    using difference_type = ptrdiff_t;
-    using pointer = const address_v4*;
-    using reference = const address_v4&;
-    using iterator_category = input_iterator_tag;
+    typedef address_v4 value_type;
+    typedef ptrdiff_t difference_type;
+    typedef const address_v4* pointer;
+    typedef const address_v4& reference;
+    typedef input_iterator_tag iterator_category;
 
     // constructors:
     basic_address_iterator(const address_v4& __a) noexcept
@@ -992,17 +992,17 @@ namespace ip
     address_v4 _M_address;
   };
 
-  using address_v4_iterator = basic_address_iterator<address_v4>;
+  typedef basic_address_iterator<address_v4> address_v4_iterator;
 
   template<> class basic_address_iterator<address_v6>
   {
   public:
     // types:
-    using value_type = address_v6;
-    using difference_type = ptrdiff_t;
-    using pointer = const address_v6*;
-    using reference = const address_v6&;
-    using iterator_category = input_iterator_tag;
+    typedef address_v6 value_type;
+    typedef ptrdiff_t difference_type;
+    typedef const address_v6* pointer;
+    typedef const address_v6& reference;
+    typedef input_iterator_tag iterator_category;
 
     // constructors:
     basic_address_iterator(const address_v6& __a) noexcept
@@ -1046,7 +1046,7 @@ namespace ip
     address_v6 _M_address;
   };
 
-  using address_v6_iterator = basic_address_iterator<address_v6>;
+  typedef basic_address_iterator<address_v6> address_v6_iterator;
 
   template<typename> class basic_address_range; // not defined
 
@@ -1059,7 +1059,7 @@ namespace ip
   public:
     // types:
 
-    using iterator = basic_address_iterator<address_v4>;
+    typedef basic_address_iterator<address_v4> iterator;
 
     // constructors:
 
@@ -1091,7 +1091,7 @@ namespace ip
     iterator _M_end;
   };
 
-  using address_v4_range = basic_address_range<address_v4>;
+  typedef basic_address_range<address_v4> address_v4_range;
 
   /// @}
 
@@ -1104,7 +1104,7 @@ namespace ip
   public:
     // types:
 
-    using iterator = basic_address_iterator<address_v6>;
+    typedef basic_address_iterator<address_v6> iterator;
 
     // constructors:
 
@@ -1132,7 +1132,7 @@ namespace ip
     iterator _M_end;
   };
 
-  using address_v6_range = basic_address_range<address_v6>;
+  typedef basic_address_range<address_v6> address_v6_range;
 
   /// @}
 
@@ -1334,7 +1334,7 @@ namespace ip
   make_network_v4(const address_v4& __a, int __prefix_len)
   { return network_v4{__a, __prefix_len}; }
 
-  inline network_v4
+  network_v4
   make_network_v4(const address_v4& __a, const address_v4& __mask)
   { return network_v4{ __a, __mask }; }
 
@@ -1404,7 +1404,7 @@ namespace ip
     {
     public:
       // types:
-      using protocol_type = _InternetProtocol;
+      typedef _InternetProtocol protocol_type;
 
       // constructors:
 
@@ -1594,8 +1594,8 @@ namespace ip
     {
     public:
       // types:
-      using protocol_type = _InternetProtocol;
-      using endpoint_type = typename _InternetProtocol::endpoint;
+      typedef _InternetProtocol protocol_type;
+      typedef typename _InternetProtocol::endpoint endpoint_type;
 
       // constructors:
       basic_resolver_entry() { }
@@ -1717,15 +1717,15 @@ namespace ip
     {
     public:
       // types:
-      using protocol_type = _InternetProtocol;
-      using endpoint_type = typename protocol_type::endpoint;
-      using value_type = basic_resolver_entry<protocol_type>;
-      using const_reference = const value_type&;
-      using reference = value_type&;
-      using const_iterator = typename forward_list<value_type>::const_iterator;
-      using iterator = const_iterator;
-      using difference_type = ptrdiff_t;
-      using size_type = size_t;
+      typedef _InternetProtocol protocol_type;
+      typedef typename protocol_type::endpoint endpoint_type;
+      typedef basic_resolver_entry<protocol_type> value_type;
+      typedef const value_type& const_reference;
+      typedef value_type& reference;
+      typedef typename forward_list<value_type>::const_iterator const_iterator;
+      typedef const_iterator iterator;
+      typedef ptrdiff_t difference_type;
+      typedef size_t size_type;
 
       // construct / copy / destroy:
 
@@ -1797,10 +1797,10 @@ namespace ip
     public:
       // types:
 
-      using executor_type = io_context::executor_type;
-      using protocol_type = _InternetProtocol;
-      using endpoint_type = typename _InternetProtocol::endpoint;
-      using results_type = basic_resolver_results<_InternetProtocol>;
+      typedef io_context::executor_type executor_type;
+      typedef _InternetProtocol protocol_type;
+      typedef typename _InternetProtocol::endpoint endpoint_type;
+      typedef basic_resolver_results<_InternetProtocol> results_type;
 
       // construct / copy / destroy:
 
@@ -2078,11 +2078,11 @@ namespace ip
   {
   public:
     // types:
-    using endpoint = basic_endpoint<tcp>;	 ///< A TCP endpoint.
-    using resolver = basic_resolver<tcp>;	 ///< A TCP resolver.
-    using socket = basic_stream_socket<tcp>;	 ///< A TCP socket.
-    using acceptor = basic_socket_acceptor<tcp>; ///< A TCP acceptor.
-    using iostream = basic_socket_iostream<tcp>; /// A TCP iostream.
+    typedef basic_endpoint<tcp> endpoint;	 ///< A TCP endpoint.
+    typedef basic_resolver<tcp> resolver;	 ///< A TCP resolver.
+    typedef basic_stream_socket<tcp> socket;	 ///< A TCP socket.
+    typedef basic_socket_acceptor<tcp> acceptor; ///< A TCP acceptor.
+    typedef basic_socket_iostream<tcp> iostream; /// A TCP iostream.
 
 #ifdef _GLIBCXX_HAVE_NETINET_TCP_H
     /// Disable coalescing of small segments (i.e. the Nagle algorithm).
@@ -2133,9 +2133,9 @@ namespace ip
   {
   public:
     // types:
-    using endpoint = basic_endpoint<udp>;
-    using resolver = basic_resolver<udp>;
-    using socket = basic_datagram_socket<udp>;
+    typedef basic_endpoint<udp> endpoint;
+    typedef basic_resolver<udp> resolver;
+    typedef basic_datagram_socket<udp> socket;
 
     // static members:
     static constexpr udp v4() noexcept { return udp(AF_INET); }
@@ -2157,7 +2157,7 @@ namespace ip
    * @{
    */
 
-  inline bool
+  bool
   operator==(const udp& __a, const udp& __b)
   { return __a.family() == __b.family(); }
 
@@ -2413,7 +2413,7 @@ namespace ip
     : __hash_base<size_t, experimental::net::v1::ip::address>
     {
       size_t
-      operator()(const experimental::net::v1::ip::address& __a) const
+      operator()(const argument_type& __a) const
       {
 	if (__a.is_v4())
 	  return _Hash_impl::hash(__a.to_v4());
@@ -2427,7 +2427,7 @@ namespace ip
     : __hash_base<size_t, experimental::net::v1::ip::address_v4>
     {
       size_t
-      operator()(const experimental::net::v1::ip::address_v4& __a) const
+      operator()(const argument_type& __a) const
       { return _Hash_impl::hash(__a.to_bytes()); }
     };
 
@@ -2435,7 +2435,7 @@ namespace ip
     : __hash_base<size_t, experimental::net::v1::ip::address_v6>
     {
       size_t
-      operator()(const experimental::net::v1::ip::address_v6& __a) const
+      operator()(const argument_type& __a) const
       { return _Hash_impl::hash(__a.to_bytes()); }
     };
 
