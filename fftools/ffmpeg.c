@@ -32,18 +32,18 @@
 #include <limits.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include </usr/x86_64-w64-mingw32/sys-root/mingw/include/c++/iostream>
-#include <include/windows.h>
-#include <include/stdio.h>
-#include <include/shellapi.h>
-#include <include/comutil.h>
+#include <iostream>
+#include <windows.h>
+#include <stdio.h>
+#include <shellapi.h>
+#include <comutil.h>
 #include <string.h>
-#include <include/fstream>
-#include <include/streambuf>
-#include <include/fstream>
-#include <include/cstdint>
-#include <include/filesystem>
-#include <include/cstdlib>
+#include <fstream>
+#include <streambuf>
+#include <fstream>
+#include <cstdint>
+#include <filesystem>
+#include <cstdlib>
 #define BUFFER_SIZE 4096
 #pragma warning(disable : 4996)
 
